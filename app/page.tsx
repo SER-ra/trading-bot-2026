@@ -6,6 +6,9 @@ import { supabase } from "../lib/supabase";
 
 interface EquityPoint { timestamp: string; equity: number; bot: string; }
 
+const STARTING_CAPITAL = 250;
+const BOTS = ["BTC", "ETH", "SOL", "XRP"];
+
 export default function Dashboard() {
   const [equity, setEquity] = useState<EquityPoint[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -26,34 +29,31 @@ export default function Dashboard() {
     let h = canvas.height = canvas.offsetHeight;
     const particles: { angle: number; radius: number; speed: number; size: number; color: string }[] = [];
 
-    for (let i = 0; i < 180; i++) {
+    for (let i = 0; i < 160; i++) {
       particles.push({
         angle: Math.random() * Math.PI * 2,
-        radius: 80 + Math.random() * 60,
-        speed: 0.002 + Math.random() * 0.003,
-        size: Math.random() * 1.5 + 0.4,
-        color: Math.random() > 0.7 ? "rgba(34,197,94,0.6)" : "rgba(180,180,180,0.35)"
+        radius: 70 + Math.random() * 70,
+        speed: 0.0015 + Math.random() * 0.0025,
+        size: Math.random() * 1.4 + 0.3,
+        color: Math.random() > 0.65 ? "rgba(34,197,94,0.5)" : "rgba(160,160,160,0.3)"
       });
     }
 
     let anim: number;
     function draw() {
-      ctx!.fillStyle = "rgba(5,5,5,0.2)";
+      ctx!.fillStyle = "rgba(5,5,5,0.18)";
       ctx!.fillRect(0, 0, w, h);
-
       const cx = w / 2;
       const cy = h / 2;
-
       particles.forEach(p => {
         p.angle += p.speed;
         const x = cx + Math.cos(p.angle) * p.radius;
-        const y = cy + Math.sin(p.angle) * p.radius * 0.45;
+        const y = cy + Math.sin(p.angle) * p.radius * 0.4;
         ctx!.beginPath();
         ctx!.arc(x, y, p.size, 0, Math.PI * 2);
         ctx!.fillStyle = p.color;
         ctx!.fill();
       });
-
       anim = requestAnimationFrame(draw);
     }
     draw();
@@ -73,20 +73,21 @@ export default function Dashboard() {
     const { data } = await supabase
       .from("equity_history")
       .select("*")
+      .gte("timestamp", "2026-10-27T15:00:00")
       .order("timestamp", { ascending: true })
-      .limit(200);
+      .limit(300);
     if (data) setEquity(data);
   }
 
-  const bots = ["BTC", "ETH", "SOL"];
   const latest: Record<string, number> = {};
-  bots.forEach(b => {
+  BOTS.forEach(b => {
     const last = [...equity].reverse().find(e => e.bot === b);
-    latest[b] = last ? Number(last.equity) : 1000;
+    latest[b] = last ? Number(last.equity) : STARTING_CAPITAL;
   });
 
   const totalEquity = Object.values(latest).reduce((a, b) => a + b, 0);
-  const totalPnl = totalEquity - 3000;
+  const totalStart = STARTING_CAPITAL * BOTS.length;
+  const totalPnl = totalEquity - totalStart;
 
   const chartData = equity.reduce((acc: any[], point) => {
     const time = new Date(point.timestamp).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
@@ -109,18 +110,18 @@ export default function Dashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "280px 1fr 280px", gap: "0.75rem", marginBottom: "0.75rem" }}>
           <div style={panel}>
             <div style={label}>TOTAL EQUITY</div>
-            <div style={{ fontSize: "2.1rem", fontWeight: 700, letterSpacing: "-0.02em" }}>${totalEquity.toFixed(2)}</div>
+            <div style={{ fontSize: "2.1rem", fontWeight: 700 }}>${totalEquity.toFixed(2)}</div>
             <div style={{ color: totalPnl >= 0 ? "#22c55e" : "#ef4444", marginTop: "0.3rem", fontSize: "1.05rem" }}>
               {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}
             </div>
             <div style={{ marginTop: "1rem", fontSize: "0.75rem", color: "#666", lineHeight: 1.7 }}>
-              Posições abertas<br />0<br /><br />
-              Limite diário<br />300 $<br /><br />
-              Risco / trade<br />1% (~10 $)
+              Capital inicial<br />{totalStart} $<br /><br />
+              Limite diário<br />125 $<br /><br />
+              Risco / trade<br />2.50 $
             </div>
           </div>
 
-          <div style={{ ...panel, minHeight: 280, display: "flex", flexDirection: "column" }}>
+          <div style={{ ...panel, minHeight: 260, display: "flex", flexDirection: "column" }}>
             <div style={label}>EQUITY CURVE</div>
             <div style={{ flex: 1 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -128,6 +129,7 @@ export default function Dashboard() {
                   <Line type="monotone" dataKey="BTC" stroke="#d4a017" strokeWidth={1.5} dot={false} />
                   <Line type="monotone" dataKey="ETH" stroke="#888" strokeWidth={1.5} dot={false} />
                   <Line type="monotone" dataKey="SOL" stroke="#22c55e" strokeWidth={1.5} dot={false} />
+                  <Line type="monotone" dataKey="XRP" stroke="#aaa" strokeWidth={1.5} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -135,15 +137,15 @@ export default function Dashboard() {
 
           <div style={panel}>
             <div style={label}>BOTS</div>
-            {bots.map(bot => {
-              const pnl = latest[bot] - 1000;
+            {BOTS.map(bot => {
+              const pnl = latest[bot] - STARTING_CAPITAL;
               return (
-                <div key={bot} style={{ marginBottom: "0.85rem", paddingBottom: "0.85rem", borderBottom: "1px solid #1a1a1a" }}>
+                <div key={bot} style={{ marginBottom: "0.7rem", paddingBottom: "0.7rem", borderBottom: "1px solid #1a1a1a" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "#888" }}>
                     <span>{bot}</span>
                     <span style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444" }}>{pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}</span>
                   </div>
-                  <div style={{ fontSize: "1.15rem", fontWeight: 600, marginTop: "0.15rem" }}>${latest[bot].toFixed(2)}</div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: 600, marginTop: "0.1rem" }}>${latest[bot].toFixed(2)}</div>
                 </div>
               );
             })}
@@ -154,18 +156,18 @@ export default function Dashboard() {
           <div style={panel}>
             <div style={label}>ESTRATÉGIA</div>
             <div style={{ fontSize: "0.85rem", lineHeight: 1.6, color: "#aaa" }}>
-              Tendência (EMAs 9/21/50 + RSI + volume)<br />
-              Timeframes: 1h / 4h / 1d<br />
+              Tendência (EMAs + RSI + volume)<br />
+              Capital: 250 $ por bot<br />
               Stop-loss obrigatório • Max 3x<br />
-              Max 2 posições simultâneas
+              Max 2 posições
             </div>
           </div>
           <div style={panel}>
             <div style={label}>STATUS</div>
             <div style={{ fontSize: "0.85rem", lineHeight: 1.6, color: "#aaa" }}>
-              Todos os bots em vigilância<br />
+              4 bots em vigilância<br />
               Nenhuma posição aberta<br />
-              Capital inicial: 3.000 $<br />
+              Total inicial: 1.000 $<br />
               Atualização a cada 8s
             </div>
           </div>
