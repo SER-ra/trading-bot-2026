@@ -152,6 +152,7 @@ export default function Dashboard() {
   const totalEquity = Object.values(latest).reduce((a, b) => a + b, 0);
   const totalStart = STARTING_CAPITAL * BOTS.length;
   const totalPnl = totalEquity - totalStart;
+  const pnlColor = totalPnl >= 0 ? "#22c55e" : "#ef4444";
 
   const getBotStats = (bot: string) => {
     const botTrades = trades.filter(t => t.bot === bot);
@@ -159,7 +160,7 @@ export default function Dashboard() {
     const exits = botTrades.filter(t => t.status === "closed").length;
     const openTrades = botTrades.filter(t => t.status === "open");
     const allocated = openTrades.reduce((sum, t) => sum + ((t.quantity || 0) * (t.entry_price || 0)), 0);
-    return { entries, exits, allocated, openCount: openTrades.length };
+    return { entries, exits, allocated };
   };
 
   const getBotChart = (bot: string) =>
@@ -192,9 +193,9 @@ export default function Dashboard() {
           textAlign: "center"
         }}>
           <div style={{ fontSize: "0.65rem", color: "#666", letterSpacing: "0.12em" }}>TOTAL EQUITY</div>
-          <div style={{ fontSize: "2.2rem", fontWeight: 600, margin: "0.2rem 0", letterSpacing: "-0.02em" }}>${totalEquity.toFixed(2)}</div>
-          <div style={{ color: totalPnl >= 0 ? "#22c55e" : "#ef4444" }}>
-            {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}
+          <div style={{ fontSize: "2.2rem", fontWeight: 600, margin: "0.2rem 0" }}>${totalEquity.toFixed(2)}</div>
+          <div style={{ fontSize: "1.15rem", fontWeight: 600, color: pnlColor }}>
+            DIA {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}
           </div>
         </div>
 
@@ -207,6 +208,7 @@ export default function Dashboard() {
             const candleData = candles[bot] || [];
             const last = candleData[candleData.length - 1];
             const stats = getBotStats(bot);
+            const botPnlColor = pnl >= 0 ? "#22c55e" : "#ef4444";
             return (
               <div key={bot} style={{
                 background: "rgba(10,10,10,0.75)",
@@ -216,8 +218,8 @@ export default function Dashboard() {
                 backdropFilter: "blur(6px)"
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.3rem" }}>
-                  <span style={{ fontWeight: 600, letterSpacing: "0.05em" }}>{bot}</span>
-                  <span style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444", fontSize: "0.85rem" }}>
+                  <span style={{ fontWeight: 600 }}>{bot}</span>
+                  <span style={{ color: botPnlColor, fontSize: "0.85rem", fontWeight: 600 }}>
                     {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
                   </span>
                 </div>
