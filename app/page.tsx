@@ -1,16 +1,59 @@
  "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { AreaChart, Area, ResponsiveContainer, ComposedChart, Bar, Line } from "recharts";
+import { AreaChart, Area, ResponsiveContainer, LineChart, Line } from "recharts";
 import { supabase } from "../lib/supabase";
 
 interface EquityPoint { timestamp: string; equity: number; bot: string; }
-interface Candle { time: string; open: number; high: number; low: number; close: number; }
+interface Candle { time: string; open: number; high: number; low: number; close: number; ema9?: number; ema21?: number; rsi?: number; }
 
 const STARTING_CAPITAL = 250;
 const BOTS = ["BTC", "ETH", "SOL", "XRP"];
 const SYMBOLS: Record<string, string> = { BTC: "BTCUSDT", ETH: "ETHUSDT", SOL: "SOLUSDT", XRP: "XRPUSDT" };
 const COLORS: Record<string, string> = { BTC: "#d4a017", ETH: "#888", SOL: "#22c55e", XRP: "#a0a0a0" };
+
+function calcEMA(data: number[], period: number): number[] {
+  const k = 2 / (period + 1);
+  const ema: number[] = [];
+  let prev = data.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  for (let i = 0; i < data.length; i++) {
+    if (i < period - 1) {
+      ema.push(data[i]);
+    } else if (i === period - 1) {
+      ema.push(prev);
+    } else {
+      prev = data[i] * k + prev * (1 - k);
+      ema.push(prev);
+    }
+  }
+  return ema;
+}
+
+function calcRSI(closes: number[], period = 14): number[] {
+  const rsi: number[] = [];
+  let gains = 0, losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const diff = closes[i] - closes[i - 1];
+    if (diff >= 0) gains += diff;
+    else losses -= diff;
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  for (let i = 0; i < closes.length; i++) {
+    if (i < period) {
+      rsi.push(50);
+      continue;
+    }
+    const diff = closes[i] - closes[i - 1];
+    const gain = diff > 0 ? diff : 0;
+    const loss = diff < 0 ? -diff : 0;
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+    rsi.push(100 - 100 / (1 + rs));
+  }
+  return rsi;
+}
 
 export default function Dashboard() {
   const [equity, setEquity] = useState<EquityPoint[]>([]);
@@ -19,7 +62,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchAll();
-    const interval = setInterval(fetchAll, 15000);
+    const interval = setInterval(fetchAll, 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -33,26 +76,26 @@ export default function Dashboard() {
     let h = canvas.height = canvas.offsetHeight;
     const particles: { angle: number; radius: number; speed: number; size: number; color: string }[] = [];
 
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 100; i++) {
       particles.push({
         angle: Math.random() * Math.PI * 2,
-        radius: 50 + Math.random() * 90,
-        speed: 0.001 + Math.random() * 0.002,
-        size: Math.random() * 1.2 + 0.3,
-        color: Math.random() > 0.7 ? "rgba(34,197,94,0.4)" : "rgba(140,140,140,0.2)"
+        radius: 40 + Math.random() * 100,
+        speed: 0.001 + Math.random() * 0.0015,
+        size: Math.random() * 1.1 + 0.25,
+        color: Math.random() > 0.75 ? "rgba(34,197,94,0.35)" : "rgba(130,130,130,0.18)"
       });
     }
 
     let anim: number;
     function draw() {
-      ctx!.fillStyle = "rgba(5,5,5,0.2)";
+      ctx!.fillStyle = "rgba(5,5,5,0.22)";
       ctx!.fillRect(0, 0, w, h);
       const cx = w / 2;
       const cy = h / 2;
       particles.forEach(p => {
         p.angle += p.speed;
         const x = cx + Math.cos(p.angle) * p.radius;
-        const y = cy + Math.sin(p.angle) * p.radius * 0.35;
+        const y = cy + Math.sin(p.angle) * p.radius * 0.32;
         ctx!.beginPath();
         ctx!.arc(x, y, p.size, 0, Math.PI * 2);
         ctx!.fillStyle = p.color;
@@ -85,14 +128,21 @@ export default function Dashboard() {
     const candleData: Record<string, Candle[]> = {};
     for (const bot of BOTS) {
       try {
-        const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${SYMBOLS[bot]}&interval=15m&limit=40`);
+        const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${SYMBOLS[bot]}&interval=15m&limit=60`);
         const json = await res.json();
-        candleData[bot] = json.map((k: any) => ({
+        const closes = json.map((k: any) => parseFloat(k[4]));
+        const ema9 = calcEMA(closes, 9);
+        const ema21 = calcEMA(closes, 21);
+        const rsi = calcRSI(closes, 14);
+        candleData[bot] = json.map((k: any, i: number) => ({
           time: new Date(k[0]).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }),
           open: parseFloat(k[1]),
           high: parseFloat(k[2]),
           low: parseFloat(k[3]),
-          close: parseFloat(k[4])
+          close: closes[i],
+          ema9: ema9[i],
+          ema21: ema21[i],
+          rsi: rsi[i]
         }));
       } catch {
         candleData[bot] = [];
@@ -139,13 +189,14 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "0.75rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "0.75rem" }}>
           {BOTS.map(bot => {
             const data = getBotChart(bot);
             const eq = latest[bot];
             const pnl = eq - STARTING_CAPITAL;
             const color = COLORS[bot];
             const candleData = candles[bot] || [];
+            const last = candleData[candleData.length - 1];
             return (
               <div key={bot} style={{
                 background: "rgba(10,10,10,0.75)",
@@ -154,15 +205,23 @@ export default function Dashboard() {
                 padding: "1rem 1.1rem",
                 backdropFilter: "blur(6px)"
               }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.4rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.3rem" }}>
                   <span style={{ fontWeight: 600 }}>{bot}</span>
                   <span style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444", fontSize: "0.9rem" }}>
                     {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
                   </span>
                 </div>
-                <div style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: "0.5rem" }}>${eq.toFixed(2)}</div>
+                <div style={{ fontSize: "1.35rem", fontWeight: 700, marginBottom: "0.4rem" }}>${eq.toFixed(2)}</div>
 
-                <div style={{ height: 70, marginBottom: "0.6rem" }}>
+                {last && (
+                  <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.7rem", color: "#888", marginBottom: "0.5rem" }}>
+                    <span>RSI <strong style={{ color: last.rsi! > 70 ? "#ef4444" : last.rsi! < 30 ? "#22c55e" : "#ccc" }}>{last.rsi?.toFixed(1)}</strong></span>
+                    <span>EMA9 <strong style={{ color: "#ccc" }}>{last.ema9?.toFixed(2)}</strong></span>
+                    <span>EMA21 <strong style={{ color: "#ccc" }}>{last.ema21?.toFixed(2)}</strong></span>
+                  </div>
+                )}
+
+                <div style={{ height: 60, marginBottom: "0.5rem" }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={data.length ? data : [{ equity: STARTING_CAPITAL }]}>
                       <defs>
@@ -176,13 +235,13 @@ export default function Dashboard() {
                   </ResponsiveContainer>
                 </div>
 
-                <div style={{ fontSize: "0.65rem", color: "#555", marginBottom: "0.3rem" }}>15m Candles</div>
-                <div style={{ height: 80 }}>
+                <div style={{ height: 90 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={candleData}>
-                      <Bar dataKey="close" fill="#333" />
-                      <Line type="monotone" dataKey="close" stroke={color} strokeWidth={1.2} dot={false} />
-                    </ComposedChart>
+                    <LineChart data={candleData}>
+                      <Line type="monotone" dataKey="close" stroke="#555" strokeWidth={1} dot={false} />
+                      <Line type="monotone" dataKey="ema9" stroke={color} strokeWidth={1.2} dot={false} />
+                      <Line type="monotone" dataKey="ema21" stroke="#666" strokeWidth={1} dot={false} strokeDasharray="3 3" />
+                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
