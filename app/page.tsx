@@ -6,62 +6,20 @@ import { supabase } from "../lib/supabase";
 
 interface EquityPoint { timestamp: string; equity: number; bot: string; }
 interface Trade { id: string; bot: string; side: string; status: string; quantity?: number; entry_price?: number; pnl?: number; }
-interface Candle { time: string; close: number; ema9?: number; ema21?: number; rsi?: number; }
 
 const STARTING_CAPITAL = 250;
 const BOTS = ["BTC", "ETH", "SOL", "XRP"];
-const SYMBOLS: Record<string, string> = { BTC: "BTCUSDT", ETH: "ETHUSDT", SOL: "SOLUSDT", XRP: "XRPUSDT" };
 const COLORS: Record<string, string> = { BTC: "#d4a017", ETH: "#888", SOL: "#22c55e", XRP: "#a0a0a0" };
-
-function calcEMA(data: number[], period: number): number[] {
-  const k = 2 / (period + 1);
-  const ema: number[] = [];
-  let prev = data.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  for (let i = 0; i < data.length; i++) {
-    if (i < period - 1) ema.push(data[i]);
-    else if (i === period - 1) ema.push(prev);
-    else {
-      prev = data[i] * k + prev * (1 - k);
-      ema.push(prev);
-    }
-  }
-  return ema;
-}
-
-function calcRSI(closes: number[], period = 14): number[] {
-  const rsi: number[] = [];
-  let gains = 0, losses = 0;
-  for (let i = 1; i <= period; i++) {
-    const diff = closes[i] - closes[i - 1];
-    if (diff >= 0) gains += diff; else losses -= diff;
-  }
-  let avgGain = gains / period;
-  let avgLoss = losses / period;
-  for (let i = 0; i < closes.length; i++) {
-    if (i < period) { rsi.push(50); continue; }
-    const diff = closes[i] - closes[i - 1];
-    const gain = diff > 0 ? diff : 0;
-    const loss = diff < 0 ? -diff : 0;
-    avgGain = (avgGain * (period - 1) + gain) / period;
-    avgLoss = (avgLoss * (period - 1) + loss) / period;
-    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-    rsi.push(100 - 100 / (1 + rs));
-  }
-  return rsi;
-}
 
 export default function Dashboard() {
   const [equity, setEquity] = useState<EquityPoint[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
-  const [candles, setCandles] = useState<Record<string, Candle[]>>({});
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-    }
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
     fetchAll();
-    const interval = setInterval(fetchAll, 20000);
+    const interval = setInterval(fetchAll, 15000);
     return () => clearInterval(interval);
   }, []);
 
@@ -70,31 +28,27 @@ export default function Dashboard() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
     let w = canvas.width = canvas.offsetWidth;
     let h = canvas.height = canvas.offsetHeight;
-    const particles: { angle: number; radius: number; speed: number; size: number; color: string }[] = [];
-
-    for (let i = 0; i < 80; i++) {
+    const particles: any[] = [];
+    for (let i = 0; i < 70; i++) {
       particles.push({
         angle: Math.random() * Math.PI * 2,
-        radius: 40 + Math.random() * 100,
-        speed: 0.001 + Math.random() * 0.0015,
-        size: Math.random() * 1.1 + 0.25,
-        color: Math.random() > 0.75 ? "rgba(34,197,94,0.35)" : "rgba(130,130,130,0.18)"
+        radius: 40 + Math.random() * 90,
+        speed: 0.001 + Math.random() * 0.0012,
+        size: Math.random() * 1 + 0.3,
+        color: Math.random() > 0.7 ? "rgba(34,197,94,0.3)" : "rgba(120,120,120,0.15)"
       });
     }
-
     let anim: number;
     function draw() {
-      ctx!.fillStyle = "rgba(5,5,5,0.22)";
+      ctx!.fillStyle = "rgba(5,5,5,0.25)";
       ctx!.fillRect(0, 0, w, h);
-      const cx = w / 2;
-      const cy = h / 2;
+      const cx = w / 2, cy = h / 2;
       particles.forEach(p => {
         p.angle += p.speed;
         const x = cx + Math.cos(p.angle) * p.radius;
-        const y = cy + Math.sin(p.angle) * p.radius * 0.32;
+        const y = cy + Math.sin(p.angle) * p.radius * 0.3;
         ctx!.beginPath();
         ctx!.arc(x, y, p.size, 0, Math.PI * 2);
         ctx!.fillStyle = p.color;
@@ -103,47 +57,18 @@ export default function Dashboard() {
       anim = requestAnimationFrame(draw);
     }
     draw();
-
-    const onResize = () => {
-      w = canvas.width = canvas.offsetWidth;
-      h = canvas.height = canvas.offsetHeight;
-    };
+    const onResize = () => { w = canvas.width = canvas.offsetWidth; h = canvas.height = canvas.offsetHeight; };
     window.addEventListener("resize", onResize);
-    return () => {
-      cancelAnimationFrame(anim);
-      window.removeEventListener("resize", onResize);
-    };
+    return () => { cancelAnimationFrame(anim); window.removeEventListener("resize", onResize); };
   }, []);
 
   async function fetchAll() {
     const [eq, tr] = await Promise.all([
-      supabase.from("equity_history").select("*").gte("timestamp", "2026-10-27T15:00:00").order("timestamp", { ascending: true }).limit(400),
-      supabase.from("trades").select("*").order("opened_at", { ascending: false }).limit(200)
+      supabase.from("equity_history").select("*").gte("timestamp", "2026-10-27T15:00:00").order("timestamp", { ascending: true }).limit(500),
+      supabase.from("trades").select("*").order("opened_at", { ascending: false }).limit(300)
     ]);
     if (eq.data) setEquity(eq.data);
     if (tr.data) setTrades(tr.data);
-
-    const candleData: Record<string, Candle[]> = {};
-    for (const bot of BOTS) {
-      try {
-        const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${SYMBOLS[bot]}&interval=15m&limit=40`);
-        const json = await res.json();
-        const closes = json.map((k: any) => parseFloat(k[4]));
-        const ema9 = calcEMA(closes, 9);
-        const ema21 = calcEMA(closes, 21);
-        const rsi = calcRSI(closes, 14);
-        candleData[bot] = json.map((k: any, i: number) => ({
-          time: new Date(k[0]).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }),
-          close: closes[i],
-          ema9: ema9[i],
-          ema21: ema21[i],
-          rsi: rsi[i]
-        }));
-      } catch {
-        candleData[bot] = [];
-      }
-    }
-    setCandles(candleData);
   }
 
   const latest: Record<string, number> = {};
@@ -157,132 +82,134 @@ export default function Dashboard() {
   const totalPnl = totalEquity - totalStart;
   const pnlColor = totalPnl >= 0 ? "#22c55e" : "#ef4444";
 
-  const totalTrades = trades.filter(t => t.status === "closed" || t.status === "open").length;
-  const openPositions = trades.filter(t => t.status === "open").length;
+  const closedTrades = trades.filter(t => t.status === "closed");
+  const wins = closedTrades.filter(t => (t.pnl || 0) > 0).length;
+  const winRate = closedTrades.length ? (wins / closedTrades.length) * 100 : 0;
 
-  const getBotStats = (bot: string) => {
-    const botTrades = trades.filter(t => t.bot === bot);
-    const entries = botTrades.filter(t => t.status === "open" || t.status === "closed").length;
-    const exits = botTrades.filter(t => t.status === "closed").length;
-    const openTrades = botTrades.filter(t => t.status === "open");
-    const allocated = openTrades.reduce((sum, t) => sum + ((t.quantity || 0) * (t.entry_price || 0)), 0);
-    return { entries, exits, allocated };
-  };
+  // Equity curve for total
+  const equityCurve = equity.reduce((acc: any[], p) => {
+    const time = new Date(p.timestamp).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
+    let entry = acc.find(e => e.time === time);
+    if (!entry) { entry = { time }; acc.push(entry); }
+    entry[p.bot] = Number(p.equity);
+    return acc;
+  }, []);
 
-  const getBotChart = (bot: string) =>
-    equity.filter(e => e.bot === bot).map(e => ({ equity: Number(e.equity) }));
+  // Drawdown calculation (simple peak-to-current)
+  let peak = totalStart;
+  let maxDD = 0;
+  equity.forEach(p => {
+    const eq = Number(p.equity);
+    if (eq > peak) peak = eq;
+    const dd = (peak - eq) / peak;
+    if (dd > maxDD) maxDD = dd;
+  });
+  const currentDD = peak > 0 ? ((peak - totalEquity) / peak) * 100 : 0;
+
+  const getBotChart = (bot: string) => equity.filter(e => e.bot === bot).map(e => ({ equity: Number(e.equity) }));
 
   return (
-    <div style={{
-      position: "relative",
-      minHeight: "100vh",
-      background: "#050505",
-      color: "#d4d4d4",
-      fontFamily: "'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Roboto Mono', monospace",
-      overflow: "hidden"
-    }}>
-      <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <div style={{ position: "relative", minHeight: "100vh", background: "#050505", color: "#d4d4d4", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden" }}>
+      <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
       <link rel="manifest" href="/manifest.json" />
-      <meta name="theme-color" content="#050505" />
       <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 0 }} />
 
-      <div style={{ position: "relative", zIndex: 1, padding: "0.85rem", maxWidth: 1400, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+      <div style={{ position: "relative", zIndex: 1, padding: "0.8rem", maxWidth: 1400, margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.9rem" }}>
           <div style={{ letterSpacing: "0.12em", fontSize: "0.7rem", color: "#777" }}>TRADING</div>
           <div style={{ fontSize: "0.65rem", color: "#22c55e" }}>● LIVE</div>
         </div>
 
-        {/* Daily Summary */}
-        <div style={{
-          background: "rgba(10,10,10,0.85)",
-          border: "1px solid #1c1c1c",
-          borderRadius: 14,
-          padding: "1.1rem",
-          marginBottom: "0.85rem",
-          textAlign: "center"
-        }}>
-          <div style={{ fontSize: "0.6rem", color: "#666", letterSpacing: "0.1em" }}>HOJE</div>
-          <div style={{ fontSize: "1.8rem", fontWeight: 600, margin: "0.15rem 0" }}>${totalEquity.toFixed(2)}</div>
+        {/* Main summary */}
+        <div style={{ background: "rgba(10,10,10,0.85)", border: "1px solid #1c1c1c", borderRadius: 14, padding: "1rem", marginBottom: "0.75rem", textAlign: "center" }}>
+          <div style={{ fontSize: "0.6rem", color: "#666" }}>TOTAL EQUITY</div>
+          <div style={{ fontSize: "1.9rem", fontWeight: 600 }}>${totalEquity.toFixed(2)}</div>
           <div style={{ fontSize: "1.05rem", fontWeight: 600, color: pnlColor }}>
-            {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}
-          </div>
-          <div style={{ display: "flex", justifyContent: "center", gap: "1.25rem", marginTop: "0.6rem", fontSize: "0.65rem", color: "#777" }}>
-            <span>Trades: <strong style={{ color: "#ccc" }}>{totalTrades}</strong></span>
-            <span>Abertas: <strong style={{ color: "#ccc" }}>{openPositions}</strong></span>
+            DIA {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: "0.65rem" }}>
+        {/* Metrics row */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
+          <div style={metricCard}>
+            <div style={metricLabel}>WIN RATE</div>
+            <div style={{ fontSize: "1.1rem", fontWeight: 600, color: winRate >= 50 ? "#22c55e" : "#ef4444" }}>{winRate.toFixed(0)}%</div>
+          </div>
+          <div style={metricCard}>
+            <div style={metricLabel}>DRAWDOWN</div>
+            <div style={{ fontSize: "1.1rem", fontWeight: 600, color: currentDD > 5 ? "#ef4444" : "#ccc" }}>{currentDD.toFixed(1)}%</div>
+          </div>
+          <div style={metricCard}>
+            <div style={metricLabel}>TRADES</div>
+            <div style={{ fontSize: "1.1rem", fontWeight: 600 }}>{closedTrades.length}</div>
+          </div>
+        </div>
+
+        {/* Total equity chart */}
+        <div style={{ background: "rgba(10,10,10,0.75)", border: "1px solid #1c1c1c", borderRadius: 12, padding: "0.8rem", marginBottom: "0.75rem" }}>
+          <div style={{ fontSize: "0.6rem", color: "#666", marginBottom: "0.4rem" }}>EQUITY TOTAL</div>
+          <div style={{ height: 90 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={equityCurve}>
+                <defs>
+                  <linearGradient id="totalG" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="BTC" stroke="#d4a017" fill="none" strokeWidth={1.2} dot={false} />
+                <Area type="monotone" dataKey="ETH" stroke="#888" fill="none" strokeWidth={1.2} dot={false} />
+                <Area type="monotone" dataKey="SOL" stroke="#22c55e" fill="none" strokeWidth={1.2} dot={false} />
+                <Area type="monotone" dataKey="XRP" stroke="#aaa" fill="none" strokeWidth={1.2} dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Bot cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: "0.6rem" }}>
           {BOTS.map(bot => {
             const data = getBotChart(bot);
             const eq = latest[bot];
             const pnl = eq - STARTING_CAPITAL;
             const color = COLORS[bot];
-            const candleData = candles[bot] || [];
-            const last = candleData[candleData.length - 1];
-            const stats = getBotStats(bot);
-            const botPnlColor = pnl >= 0 ? "#22c55e" : "#ef4444";
+            const botTrades = closedTrades.filter(t => t.bot === bot);
+            const botWins = botTrades.filter(t => (t.pnl || 0) > 0).length;
+            const botWR = botTrades.length ? (botWins / botTrades.length) * 100 : 0;
             return (
-              <div key={bot} style={{
-                background: "rgba(10,10,10,0.75)",
-                border: "1px solid #1c1c1c",
-                borderRadius: 12,
-                padding: "0.9rem 1rem",
-                backdropFilter: "blur(6px)"
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.25rem" }}>
+              <div key={bot} style={{ background: "rgba(10,10,10,0.75)", border: "1px solid #1c1c1c", borderRadius: 12, padding: "0.85rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ fontWeight: 600 }}>{bot}</span>
-                  <span style={{ color: botPnlColor, fontSize: "0.8rem", fontWeight: 600 }}>
-                    {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
-                  </span>
+                  <span style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444", fontSize: "0.8rem" }}>{pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}</span>
                 </div>
-                <div style={{ fontSize: "1.2rem", fontWeight: 600, marginBottom: "0.3rem" }}>${eq.toFixed(2)}</div>
-
-                <div style={{ display: "flex", gap: "0.8rem", fontSize: "0.62rem", color: "#888", marginBottom: "0.4rem" }}>
-                  <span>IN <strong style={{ color: "#ccc" }}>{stats.entries}</strong></span>
-                  <span>OUT <strong style={{ color: "#ccc" }}>{stats.exits}</strong></span>
-                  <span>ALLOC <strong style={{ color: "#ccc" }}>${stats.allocated.toFixed(0)}</strong></span>
-                </div>
-
-                {last && (
-                  <div style={{ fontSize: "0.6rem", color: "#666", marginBottom: "0.35rem" }}>
-                    RSI <strong style={{ color: last.rsi! > 70 ? "#ef4444" : last.rsi! < 30 ? "#22c55e" : "#aaa" }}>{last.rsi?.toFixed(0)}</strong>
-                    {" · "}EMA9 {last.ema9?.toFixed(1)}
-                  </div>
-                )}
-
-                <div style={{ height: 48, marginBottom: "0.3rem" }}>
+                <div style={{ fontSize: "1.15rem", fontWeight: 600, margin: "0.2rem 0" }}>${eq.toFixed(2)}</div>
+                <div style={{ fontSize: "0.6rem", color: "#666", marginBottom: "0.3rem" }}>WR {botWR.toFixed(0)}% · {botTrades.length} trades</div>
+                <div style={{ height: 45 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={data.length ? data : [{ equity: STARTING_CAPITAL }]}>
-                      <defs>
-                        <linearGradient id={`g-${bot}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                          <stop offset="95%" stopColor={color} stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <Area type="monotone" dataKey="equity" stroke={color} fill={`url(#g-${bot})`} strokeWidth={1.5} dot={false} />
+                      <Area type="monotone" dataKey="equity" stroke={color} fill={color} fillOpacity={0.15} strokeWidth={1.5} dot={false} />
                     </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div style={{ height: 60 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={candleData}>
-                      <Line type="monotone" dataKey="close" stroke="#444" strokeWidth={1} dot={false} />
-                      <Line type="monotone" dataKey="ema9" stroke={color} strokeWidth={1.2} dot={false} />
-                      <Line type="monotone" dataKey="ema21" stroke="#555" strokeWidth={1} dot={false} strokeDasharray="3 3" />
-                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
             );
           })}
         </div>
-
-        <div style={{ textAlign: "center", marginTop: "1.25rem", fontSize: "0.6rem", color: "#444" }}>
-          Adiciona ao ecrã inicial para usar como app
-        </div>
       </div>
     </div>
   );
 }
+
+const metricCard: React.CSSProperties = {
+  background: "rgba(10,10,10,0.75)",
+  border: "1px solid #1c1c1c",
+  borderRadius: 10,
+  padding: "0.7rem",
+  textAlign: "center"
+};
+const metricLabel: React.CSSProperties = {
+  fontSize: "0.55rem",
+  color: "#666",
+  letterSpacing: "0.08em",
+  marginBottom: "0.2rem"
+};
