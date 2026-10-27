@@ -1,10 +1,7 @@
  "use client";
 
 import { useEffect, useState } from "react";
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar
-} from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { supabase } from "../lib/supabase";
 
 interface EquityPoint { timestamp: string; equity: number; bot: string; }
@@ -32,7 +29,7 @@ export default function Dashboard() {
   }
 
   const bots = ["BTC", "ETH", "SOL"];
-  const colors: Record<string, string> = { BTC: "#f7931a", ETH: "#627eea", SOL: "#14f195" };
+  const colors: Record<string, string> = { BTC: "#d4a017", ETH: "#c0c0c0", SOL: "#a8a8a8" };
 
   const chartData = equity.reduce((acc: any[], point) => {
     const time = new Date(point.timestamp).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
@@ -54,115 +51,90 @@ export default function Dashboard() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0f0f1a 100%)",
-      color: "#e0e0e0",
+      background: "#0d0d0d",
+      color: "#e5e5e5",
       fontFamily: "system-ui, sans-serif",
       padding: "2rem"
     }}>
       <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-        <h1 style={{
-          fontSize: "2.5rem",
-          background: "linear-gradient(90deg, #00f5ff, #a855f7)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          marginBottom: "0.5rem"
-        }}>
-          Trading Bots Control
+        <h1 style={{ fontSize: "2.2rem", color: "#fff", marginBottom: "0.25rem", letterSpacing: "-0.02em" }}>
+          Trading Bots
         </h1>
-        <p style={{ color: "#888", marginTop: 0 }}>Paper Trading • Atualização a cada 20s</p>
+        <p style={{ color: "#888", marginTop: 0, marginBottom: "2rem" }}>
+          Paper Trading • 1.000 $ por bot • Atualização a cada 20s
+        </p>
 
-        {/* Summary cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem", margin: "2rem 0" }}>
-          <Card title="Equity Total" value={`$${totalEquity.toFixed(2)}`} sub={totalPnl >= 0 ? `+$${totalPnl.toFixed(2)}` : `-$${Math.abs(totalPnl).toFixed(2)}`} positive={totalPnl >= 0} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
+          <Card title="Equity Total" value={`$${totalEquity.toFixed(2)}`} sub={totalPnl >= 0 ? `+$${totalPnl.toFixed(2)}` : `$${totalPnl.toFixed(2)}`} positive={totalPnl >= 0} />
           {bots.map(bot => (
-            <Card key={bot} title={bot} value={`$${latest[bot].toFixed(2)}`} color={colors[bot]} />
+            <Card key={bot} title={bot} value={`$${latest[bot].toFixed(2)}`} sub="Sem posições abertas" />
           ))}
         </div>
 
-        {/* Equity chart */}
         <div style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 16,
+          background: "#141414",
+          border: "1px solid #2a2a2a",
+          borderRadius: 12,
           padding: "1.5rem",
           marginBottom: "2rem"
         }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.25rem" }}>Curva de Equity</h2>
-          <ResponsiveContainer width="100%" height={420}>
+          <h2 style={{ margin: "0 0 1rem", fontSize: "1.1rem", color: "#ccc" }}>Curva de Equity</h2>
+          <ResponsiveContainer width="100%" height={380}>
             <AreaChart data={chartData}>
               <defs>
                 {bots.map(bot => (
-                  <linearGradient key={bot} id={`grad${bot}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={colors[bot]} stopOpacity={0.4} />
+                  <linearGradient key={bot} id={`g${bot}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={colors[bot]} stopOpacity={0.25} />
                     <stop offset="95%" stopColor={colors[bot]} stopOpacity={0} />
                   </linearGradient>
                 ))}
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis dataKey="time" stroke="#888" />
-              <YAxis stroke="#888" domain={["auto", "auto"]} />
-              <Tooltip
-                contentStyle={{ background: "#1a1a2e", border: "1px solid #333", borderRadius: 8 }}
-                labelStyle={{ color: "#fff" }}
-              />
+              <CartesianGrid stroke="#222" strokeDasharray="3 3" />
+              <XAxis dataKey="time" stroke="#666" />
+              <YAxis stroke="#666" />
+              <Tooltip contentStyle={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 8 }} />
               <Legend />
               {bots.map(bot => (
-                <Area
-                  key={bot}
-                  type="monotone"
-                  dataKey={bot}
-                  stroke={colors[bot]}
-                  fill={`url(#grad${bot})`}
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 6 }}
-                />
+                <Area key={bot} type="monotone" dataKey={bot} stroke={colors[bot]} fill={`url(#g${bot})`} strokeWidth={2} dot={false} />
               ))}
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Recent trades */}
         <div style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 16,
+          background: "#141414",
+          border: "1px solid #2a2a2a",
+          borderRadius: 12,
           padding: "1.5rem"
         }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.25rem" }}>Últimos Trades</h2>
+          <h2 style={{ margin: "0 0 1rem", fontSize: "1.1rem", color: "#ccc" }}>Últimos Trades</h2>
           {trades.length === 0 ? (
-            <p style={{ color: "#888" }}>Ainda não há trades registados.</p>
+            <p style={{ color: "#666", margin: 0 }}>Nenhum trade registado. Os bots estão em modo de vigilância.</p>
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid #333", textAlign: "left" }}>
-                    <th style={{ padding: "0.75rem" }}>Bot</th>
-                    <th style={{ padding: "0.75rem" }}>Símbolo</th>
-                    <th style={{ padding: "0.75rem" }}>Lado</th>
-                    <th style={{ padding: "0.75rem" }}>PnL</th>
-                    <th style={{ padding: "0.75rem" }}>Estado</th>
-                    <th style={{ padding: "0.75rem" }}>Aberto</th>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #333", textAlign: "left", color: "#888" }}>
+                  <th style={{ padding: "0.75rem" }}>Bot</th>
+                  <th style={{ padding: "0.75rem" }}>Símbolo</th>
+                  <th style={{ padding: "0.75rem" }}>Lado</th>
+                  <th style={{ padding: "0.75rem" }}>PnL</th>
+                  <th style={{ padding: "0.75rem" }}>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trades.map(t => (
+                  <tr key={t.id} style={{ borderBottom: "1px solid #222" }}>
+                    <td style={{ padding: "0.75rem" }}>{t.bot}</td>
+                    <td style={{ padding: "0.75rem" }}>{t.symbol}</td>
+                    <td style={{ padding: "0.75rem" }}>{t.side}</td>
+                    <td style={{ padding: "0.75rem", color: (t.pnl || 0) >= 0 ? "#4ade80" : "#f87171" }}>
+                      {t.pnl != null ? `$${Number(t.pnl).toFixed(2)}` : "—"}
+                    </td>
+                    <td style={{ padding: "0.75rem" }}>{t.status}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {trades.map(t => (
-                    <tr key={t.id} style={{ borderBottom: "1px solid #222" }}>
-                      <td style={{ padding: "0.75rem", color: colors[t.bot] || "#fff" }}>{t.bot}</td>
-                      <td style={{ padding: "0.75rem" }}>{t.symbol}</td>
-                      <td style={{ padding: "0.75rem", color: t.side === "long" ? "#14f195" : "#ff6b6b" }}>{t.side}</td>
-                      <td style={{ padding: "0.75rem", color: (t.pnl || 0) >= 0 ? "#14f195" : "#ff6b6b" }}>
-                        {t.pnl != null ? `$${Number(t.pnl).toFixed(2)}` : "—"}
-                      </td>
-                      <td style={{ padding: "0.75rem" }}>{t.status}</td>
-                      <td style={{ padding: "0.75rem", color: "#888" }}>
-                        {new Date(t.opened_at).toLocaleString("pt-PT")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       </div>
@@ -170,20 +142,17 @@ export default function Dashboard() {
   );
 }
 
-function Card({ title, value, sub, color, positive }: any) {
+function Card({ title, value, sub, positive }: any) {
   return (
     <div style={{
-      background: "rgba(255,255,255,0.04)",
-      border: "1px solid rgba(255,255,255,0.1)",
-      borderRadius: 12,
-      padding: "1.25rem",
-      backdropFilter: "blur(10px)"
+      background: "#141414",
+      border: "1px solid #2a2a2a",
+      borderRadius: 10,
+      padding: "1.25rem"
     }}>
-      <div style={{ color: "#aaa", fontSize: "0.9rem" }}>{title}</div>
-      <div style={{ fontSize: "1.75rem", fontWeight: 600, color: color || "#fff", margin: "0.25rem 0" }}>{value}</div>
-      {sub && (
-        <div style={{ color: positive ? "#14f195" : "#ff6b6b", fontSize: "0.95rem" }}>{sub}</div>
-      )}
+      <div style={{ color: "#888", fontSize: "0.85rem" }}>{title}</div>
+      <div style={{ fontSize: "1.6rem", fontWeight: 600, color: "#fff", margin: "0.25rem 0" }}>{value}</div>
+      {sub && <div style={{ color: positive === false ? "#f87171" : positive ? "#4ade80" : "#666", fontSize: "0.9rem" }}>{sub}</div>}
     </div>
   );
 }
