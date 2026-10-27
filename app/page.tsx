@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import { useEffect, useState, useRef } from "react";
 import { AreaChart, Area, ResponsiveContainer, LineChart, Line } from "recharts";
@@ -166,12 +166,20 @@ export default function Dashboard() {
     equity.filter(e => e.bot === bot).map(e => ({ equity: Number(e.equity) }));
 
   return (
-    <div style={{ position: "relative", minHeight: "100vh", background: "#050505", color: "#d4d4d4", fontFamily: "system-ui, sans-serif", overflow: "hidden" }}>
+    <div style={{
+      position: "relative",
+      minHeight: "100vh",
+      background: "#050505",
+      color: "#d4d4d4",
+      fontFamily: "'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Roboto Mono', monospace",
+      overflow: "hidden"
+    }}>
+      <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 0 }} />
 
       <div style={{ position: "relative", zIndex: 1, padding: "1rem", maxWidth: 1400, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-          <div style={{ letterSpacing: "0.2em", fontSize: "0.75rem", color: "#777" }}>TRADING TERMINAL</div>
+          <div style={{ letterSpacing: "0.15em", fontSize: "0.75rem", color: "#777" }}>TRADING TERMINAL</div>
           <div style={{ fontSize: "0.7rem", color: "#22c55e" }}>● LIVE</div>
         </div>
 
@@ -183,8 +191,8 @@ export default function Dashboard() {
           marginBottom: "1rem",
           textAlign: "center"
         }}>
-          <div style={{ fontSize: "0.7rem", color: "#666", letterSpacing: "0.1em" }}>TOTAL EQUITY</div>
-          <div style={{ fontSize: "2.4rem", fontWeight: 700, margin: "0.2rem 0" }}>${totalEquity.toFixed(2)}</div>
+          <div style={{ fontSize: "0.65rem", color: "#666", letterSpacing: "0.12em" }}>TOTAL EQUITY</div>
+          <div style={{ fontSize: "2.2rem", fontWeight: 600, margin: "0.2rem 0", letterSpacing: "-0.02em" }}>${totalEquity.toFixed(2)}</div>
           <div style={{ color: totalPnl >= 0 ? "#22c55e" : "#ef4444" }}>
             {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}
           </div>
@@ -208,21 +216,21 @@ export default function Dashboard() {
                 backdropFilter: "blur(6px)"
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.3rem" }}>
-                  <span style={{ fontWeight: 600 }}>{bot}</span>
-                  <span style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444", fontSize: "0.9rem" }}>
+                  <span style={{ fontWeight: 600, letterSpacing: "0.05em" }}>{bot}</span>
+                  <span style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444", fontSize: "0.85rem" }}>
                     {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
                   </span>
                 </div>
-                <div style={{ fontSize: "1.35rem", fontWeight: 700, marginBottom: "0.35rem" }}>${eq.toFixed(2)}</div>
+                <div style={{ fontSize: "1.3rem", fontWeight: 600, marginBottom: "0.35rem" }}>${eq.toFixed(2)}</div>
 
-                <div style={{ display: "flex", gap: "1rem", fontSize: "0.72rem", color: "#888", marginBottom: "0.5rem" }}>
-                  <span>Entradas: <strong style={{ color: "#ccc" }}>{stats.entries}</strong></span>
-                  <span>Saídas: <strong style={{ color: "#ccc" }}>{stats.exits}</strong></span>
-                  <span>Alocado: <strong style={{ color: "#ccc" }}>${stats.allocated.toFixed(0)}</strong></span>
+                <div style={{ display: "flex", gap: "1rem", fontSize: "0.68rem", color: "#888", marginBottom: "0.5rem" }}>
+                  <span>IN: <strong style={{ color: "#ccc" }}>{stats.entries}</strong></span>
+                  <span>OUT: <strong style={{ color: "#ccc" }}>{stats.exits}</strong></span>
+                  <span>ALLOC: <strong style={{ color: "#ccc" }}>${stats.allocated.toFixed(0)}</strong></span>
                 </div>
 
                 {last && (
-                  <div style={{ display: "flex", gap: "0.6rem", fontSize: "0.68rem", color: "#666", marginBottom: "0.4rem" }}>
+                  <div style={{ display: "flex", gap: "0.6rem", fontSize: "0.65rem", color: "#666", marginBottom: "0.4rem" }}>
                     <span>RSI <strong style={{ color: last.rsi! > 70 ? "#ef4444" : last.rsi! < 30 ? "#22c55e" : "#aaa" }}>{last.rsi?.toFixed(0)}</strong></span>
                     <span>EMA9 {last.ema9?.toFixed(1)}</span>
                   </div>
@@ -259,4 +267,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
