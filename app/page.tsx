@@ -12,7 +12,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchAll();
-    const interval = setInterval(fetchAll, 10000);
+    const interval = setInterval(fetchAll, 8000);
     return () => clearInterval(interval);
   }, []);
 
@@ -24,32 +24,36 @@ export default function Dashboard() {
 
     let w = canvas.width = canvas.offsetWidth;
     let h = canvas.height = canvas.offsetHeight;
-    const particles: { x: number; y: number; vx: number; vy: number; r: number }[] = [];
+    const particles: { angle: number; radius: number; speed: number; size: number; color: string }[] = [];
 
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 180; i++) {
       particles.push({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        r: Math.random() * 1.2 + 0.3
+        angle: Math.random() * Math.PI * 2,
+        radius: 80 + Math.random() * 60,
+        speed: 0.002 + Math.random() * 0.003,
+        size: Math.random() * 1.5 + 0.4,
+        color: Math.random() > 0.7 ? "rgba(34,197,94,0.6)" : "rgba(180,180,180,0.35)"
       });
     }
 
     let anim: number;
     function draw() {
-      ctx!.fillStyle = "rgba(5,5,5,0.15)";
+      ctx!.fillStyle = "rgba(5,5,5,0.2)";
       ctx!.fillRect(0, 0, w, h);
+
+      const cx = w / 2;
+      const cy = h / 2;
+
       particles.forEach(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0 || p.x > w) p.vx *= -1;
-        if (p.y < 0 || p.y > h) p.vy *= -1;
+        p.angle += p.speed;
+        const x = cx + Math.cos(p.angle) * p.radius;
+        const y = cy + Math.sin(p.angle) * p.radius * 0.45;
         ctx!.beginPath();
-        ctx!.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx!.fillStyle = "rgba(34,197,94,0.35)";
+        ctx!.arc(x, y, p.size, 0, Math.PI * 2);
+        ctx!.fillStyle = p.color;
         ctx!.fill();
       });
+
       anim = requestAnimationFrame(draw);
     }
     draw();
@@ -93,58 +97,78 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div style={{ position: "relative", minHeight: "100vh", background: "#050505", color: "#d0d0d0", fontFamily: "system-ui, sans-serif", overflow: "hidden" }}>
+    <div style={{ position: "relative", minHeight: "100vh", background: "#050505", color: "#d4d4d4", fontFamily: "system-ui, sans-serif", overflow: "hidden" }}>
       <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 0 }} />
 
-      <div style={{ position: "relative", zIndex: 1, padding: "1.25rem", maxWidth: 1400, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-          <div style={{ letterSpacing: "0.15em", fontSize: "0.85rem", color: "#888" }}>TRADING TERMINAL</div>
-          <div style={{ fontSize: "0.75rem", color: "#22c55e" }}>● LIVE</div>
+      <div style={{ position: "relative", zIndex: 1, padding: "1rem", maxWidth: 1500, margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+          <div style={{ letterSpacing: "0.2em", fontSize: "0.75rem", color: "#777" }}>TRADING TERMINAL</div>
+          <div style={{ fontSize: "0.7rem", color: "#22c55e", letterSpacing: "0.1em" }}>● LIVE</div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "280px 1fr 280px", gap: "0.75rem", marginBottom: "0.75rem" }}>
           <div style={panel}>
-            <div style={label}>EQUITY</div>
-            <div style={{ fontSize: "2rem", fontWeight: 700 }}>${totalEquity.toFixed(2)}</div>
-            <div style={{ color: totalPnl >= 0 ? "#22c55e" : "#ef4444", marginTop: "0.25rem" }}>
+            <div style={label}>TOTAL EQUITY</div>
+            <div style={{ fontSize: "2.1rem", fontWeight: 700, letterSpacing: "-0.02em" }}>${totalEquity.toFixed(2)}</div>
+            <div style={{ color: totalPnl >= 0 ? "#22c55e" : "#ef4444", marginTop: "0.3rem", fontSize: "1.05rem" }}>
               {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}
             </div>
+            <div style={{ marginTop: "1rem", fontSize: "0.75rem", color: "#666", lineHeight: 1.7 }}>
+              Posições abertas<br />0<br /><br />
+              Limite diário<br />300 $<br /><br />
+              Risco / trade<br />1% (~10 $)
+            </div>
           </div>
 
-          <div style={{ ...panel, height: 220 }}>
+          <div style={{ ...panel, minHeight: 280, display: "flex", flexDirection: "column" }}>
             <div style={label}>EQUITY CURVE</div>
-            <ResponsiveContainer width="100%" height="85%">
-              <LineChart data={chartData}>
-                <Line type="monotone" dataKey="BTC" stroke="#d4a017" strokeWidth={1.5} dot={false} />
-                <Line type="monotone" dataKey="ETH" stroke="#888" strokeWidth={1.5} dot={false} />
-                <Line type="monotone" dataKey="SOL" stroke="#22c55e" strokeWidth={1.5} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
+            <div style={{ flex: 1 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <Line type="monotone" dataKey="BTC" stroke="#d4a017" strokeWidth={1.5} dot={false} />
+                  <Line type="monotone" dataKey="ETH" stroke="#888" strokeWidth={1.5} dot={false} />
+                  <Line type="monotone" dataKey="SOL" stroke="#22c55e" strokeWidth={1.5} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           <div style={panel}>
-            <div style={label}>STATUS</div>
-            <div style={{ fontSize: "0.9rem", lineHeight: 1.6 }}>
-              Posições abertas: <strong>0</strong><br />
-              Limite diário: <strong>300 $</strong><br />
-              Risco / trade: <strong>1%</strong>
-            </div>
+            <div style={label}>BOTS</div>
+            {bots.map(bot => {
+              const pnl = latest[bot] - 1000;
+              return (
+                <div key={bot} style={{ marginBottom: "0.85rem", paddingBottom: "0.85rem", borderBottom: "1px solid #1a1a1a" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "#888" }}>
+                    <span>{bot}</span>
+                    <span style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444" }}>{pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}</span>
+                  </div>
+                  <div style={{ fontSize: "1.15rem", fontWeight: 600, marginTop: "0.15rem" }}>${latest[bot].toFixed(2)}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem" }}>
-          {bots.map(bot => {
-            const pnl = latest[bot] - 1000;
-            return (
-              <div key={bot} style={panel}>
-                <div style={label}>{bot}</div>
-                <div style={{ fontSize: "1.4rem", fontWeight: 600 }}>${latest[bot].toFixed(2)}</div>
-                <div style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444", fontSize: "0.85rem" }}>
-                  {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
-                </div>
-              </div>
-            );
-          })}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+          <div style={panel}>
+            <div style={label}>ESTRATÉGIA</div>
+            <div style={{ fontSize: "0.85rem", lineHeight: 1.6, color: "#aaa" }}>
+              Tendência (EMAs 9/21/50 + RSI + volume)<br />
+              Timeframes: 1h / 4h / 1d<br />
+              Stop-loss obrigatório • Max 3x<br />
+              Max 2 posições simultâneas
+            </div>
+          </div>
+          <div style={panel}>
+            <div style={label}>STATUS</div>
+            <div style={{ fontSize: "0.85rem", lineHeight: 1.6, color: "#aaa" }}>
+              Todos os bots em vigilância<br />
+              Nenhuma posição aberta<br />
+              Capital inicial: 3.000 $<br />
+              Atualização a cada 8s
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -152,17 +176,17 @@ export default function Dashboard() {
 }
 
 const panel: React.CSSProperties = {
-  background: "rgba(12,12,12,0.85)",
-  border: "1px solid #1a1a1a",
-  borderRadius: 8,
-  padding: "1rem",
-  backdropFilter: "blur(4px)"
+  background: "rgba(10,10,10,0.75)",
+  border: "1px solid #1c1c1c",
+  borderRadius: 10,
+  padding: "1rem 1.1rem",
+  backdropFilter: "blur(6px)"
 };
 
 const label: React.CSSProperties = {
-  fontSize: "0.65rem",
-  letterSpacing: "0.1em",
-  color: "#666",
-  marginBottom: "0.5rem"
+  fontSize: "0.6rem",
+  letterSpacing: "0.12em",
+  color: "#555",
+  marginBottom: "0.6rem"
 };
 
