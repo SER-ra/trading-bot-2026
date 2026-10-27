@@ -57,6 +57,9 @@ export default function Dashboard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
     fetchAll();
     const interval = setInterval(fetchAll, 20000);
     return () => clearInterval(interval);
@@ -72,7 +75,7 @@ export default function Dashboard() {
     let h = canvas.height = canvas.offsetHeight;
     const particles: { angle: number; radius: number; speed: number; size: number; color: string }[] = [];
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 80; i++) {
       particles.push({
         angle: Math.random() * Math.PI * 2,
         radius: 40 + Math.random() * 100,
@@ -123,7 +126,7 @@ export default function Dashboard() {
     const candleData: Record<string, Candle[]> = {};
     for (const bot of BOTS) {
       try {
-        const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${SYMBOLS[bot]}&interval=15m&limit=50`);
+        const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${SYMBOLS[bot]}&interval=15m&limit=40`);
         const json = await res.json();
         const closes = json.map((k: any) => parseFloat(k[4]));
         const ema9 = calcEMA(closes, 9);
@@ -154,6 +157,9 @@ export default function Dashboard() {
   const totalPnl = totalEquity - totalStart;
   const pnlColor = totalPnl >= 0 ? "#22c55e" : "#ef4444";
 
+  const totalTrades = trades.filter(t => t.status === "closed" || t.status === "open").length;
+  const openPositions = trades.filter(t => t.status === "open").length;
+
   const getBotStats = (bot: string) => {
     const botTrades = trades.filter(t => t.bot === bot);
     const entries = botTrades.filter(t => t.status === "open" || t.status === "closed").length;
@@ -176,30 +182,37 @@ export default function Dashboard() {
       overflow: "hidden"
     }}>
       <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <link rel="manifest" href="/manifest.json" />
+      <meta name="theme-color" content="#050505" />
       <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 0 }} />
 
-      <div style={{ position: "relative", zIndex: 1, padding: "1rem", maxWidth: 1400, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-          <div style={{ letterSpacing: "0.15em", fontSize: "0.75rem", color: "#777" }}>TRADING TERMINAL</div>
-          <div style={{ fontSize: "0.7rem", color: "#22c55e" }}>● LIVE</div>
+      <div style={{ position: "relative", zIndex: 1, padding: "0.85rem", maxWidth: 1400, margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+          <div style={{ letterSpacing: "0.12em", fontSize: "0.7rem", color: "#777" }}>TRADING</div>
+          <div style={{ fontSize: "0.65rem", color: "#22c55e" }}>● LIVE</div>
         </div>
 
+        {/* Daily Summary */}
         <div style={{
-          background: "rgba(10,10,10,0.8)",
+          background: "rgba(10,10,10,0.85)",
           border: "1px solid #1c1c1c",
-          borderRadius: 12,
-          padding: "1.25rem",
-          marginBottom: "1rem",
+          borderRadius: 14,
+          padding: "1.1rem",
+          marginBottom: "0.85rem",
           textAlign: "center"
         }}>
-          <div style={{ fontSize: "0.65rem", color: "#666", letterSpacing: "0.12em" }}>TOTAL EQUITY</div>
-          <div style={{ fontSize: "2.2rem", fontWeight: 600, margin: "0.2rem 0" }}>${totalEquity.toFixed(2)}</div>
-          <div style={{ fontSize: "1.15rem", fontWeight: 600, color: pnlColor }}>
-            DIA {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}
+          <div style={{ fontSize: "0.6rem", color: "#666", letterSpacing: "0.1em" }}>HOJE</div>
+          <div style={{ fontSize: "1.8rem", fontWeight: 600, margin: "0.15rem 0" }}>${totalEquity.toFixed(2)}</div>
+          <div style={{ fontSize: "1.05rem", fontWeight: 600, color: pnlColor }}>
+            {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", gap: "1.25rem", marginTop: "0.6rem", fontSize: "0.65rem", color: "#777" }}>
+            <span>Trades: <strong style={{ color: "#ccc" }}>{totalTrades}</strong></span>
+            <span>Abertas: <strong style={{ color: "#ccc" }}>{openPositions}</strong></span>
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "0.75rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: "0.65rem" }}>
           {BOTS.map(bot => {
             const data = getBotChart(bot);
             const eq = latest[bot];
@@ -214,31 +227,31 @@ export default function Dashboard() {
                 background: "rgba(10,10,10,0.75)",
                 border: "1px solid #1c1c1c",
                 borderRadius: 12,
-                padding: "1rem 1.1rem",
+                padding: "0.9rem 1rem",
                 backdropFilter: "blur(6px)"
               }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.3rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.25rem" }}>
                   <span style={{ fontWeight: 600 }}>{bot}</span>
-                  <span style={{ color: botPnlColor, fontSize: "0.85rem", fontWeight: 600 }}>
+                  <span style={{ color: botPnlColor, fontSize: "0.8rem", fontWeight: 600 }}>
                     {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
                   </span>
                 </div>
-                <div style={{ fontSize: "1.3rem", fontWeight: 600, marginBottom: "0.35rem" }}>${eq.toFixed(2)}</div>
+                <div style={{ fontSize: "1.2rem", fontWeight: 600, marginBottom: "0.3rem" }}>${eq.toFixed(2)}</div>
 
-                <div style={{ display: "flex", gap: "1rem", fontSize: "0.68rem", color: "#888", marginBottom: "0.5rem" }}>
-                  <span>IN: <strong style={{ color: "#ccc" }}>{stats.entries}</strong></span>
-                  <span>OUT: <strong style={{ color: "#ccc" }}>{stats.exits}</strong></span>
-                  <span>ALLOC: <strong style={{ color: "#ccc" }}>${stats.allocated.toFixed(0)}</strong></span>
+                <div style={{ display: "flex", gap: "0.8rem", fontSize: "0.62rem", color: "#888", marginBottom: "0.4rem" }}>
+                  <span>IN <strong style={{ color: "#ccc" }}>{stats.entries}</strong></span>
+                  <span>OUT <strong style={{ color: "#ccc" }}>{stats.exits}</strong></span>
+                  <span>ALLOC <strong style={{ color: "#ccc" }}>${stats.allocated.toFixed(0)}</strong></span>
                 </div>
 
                 {last && (
-                  <div style={{ display: "flex", gap: "0.6rem", fontSize: "0.65rem", color: "#666", marginBottom: "0.4rem" }}>
-                    <span>RSI <strong style={{ color: last.rsi! > 70 ? "#ef4444" : last.rsi! < 30 ? "#22c55e" : "#aaa" }}>{last.rsi?.toFixed(0)}</strong></span>
-                    <span>EMA9 {last.ema9?.toFixed(1)}</span>
+                  <div style={{ fontSize: "0.6rem", color: "#666", marginBottom: "0.35rem" }}>
+                    RSI <strong style={{ color: last.rsi! > 70 ? "#ef4444" : last.rsi! < 30 ? "#22c55e" : "#aaa" }}>{last.rsi?.toFixed(0)}</strong>
+                    {" · "}EMA9 {last.ema9?.toFixed(1)}
                   </div>
                 )}
 
-                <div style={{ height: 55, marginBottom: "0.4rem" }}>
+                <div style={{ height: 48, marginBottom: "0.3rem" }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={data.length ? data : [{ equity: STARTING_CAPITAL }]}>
                       <defs>
@@ -252,7 +265,7 @@ export default function Dashboard() {
                   </ResponsiveContainer>
                 </div>
 
-                <div style={{ height: 70 }}>
+                <div style={{ height: 60 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={candleData}>
                       <Line type="monotone" dataKey="close" stroke="#444" strokeWidth={1} dot={false} />
@@ -264,6 +277,10 @@ export default function Dashboard() {
               </div>
             );
           })}
+        </div>
+
+        <div style={{ textAlign: "center", marginTop: "1.25rem", fontSize: "0.6rem", color: "#444" }}>
+          Adiciona ao ecrã inicial para usar como app
         </div>
       </div>
     </div>
