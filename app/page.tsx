@@ -1,7 +1,7 @@
  "use client";
 
 import { useEffect, useState } from "react";
-import { AreaChart, Area, ResponsiveContainer, LineChart, Line } from "recharts";
+import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { supabase } from "../lib/supabase";
 
 interface EquityPoint { timestamp: string; equity: number; bot: string; }
@@ -48,18 +48,17 @@ export default function Dashboard() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#0b0e14",
-      color: "#c8d0d8",
+      background: "#0a0a0a",
+      color: "#e5e5e5",
       fontFamily: "system-ui, sans-serif",
       padding: "1.25rem"
     }}>
       <div style={{ maxWidth: 1400, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-          <h1 style={{ margin: 0, fontSize: "1.25rem", letterSpacing: "0.05em", color: "#7dd3fc" }}>DASHBOARD</h1>
-          <div style={{ fontSize: "0.8rem", color: "#64748b" }}>Paper Trading • 1.000 $ / bot</div>
+          <h1 style={{ margin: 0, fontSize: "1.25rem", letterSpacing: "0.05em", color: "#ccc" }}>DASHBOARD</h1>
+          <div style={{ fontSize: "0.8rem", color: "#666" }}>Paper Trading • 1.000 $ / bot</div>
         </div>
 
-        {/* Top stats */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
           <Widget title="EQUITY TOTAL" value={`$${totalEquity.toFixed(2)}`} sub={`${totalPnl >= 0 ? "+" : ""}${totalPnlPct.toFixed(2)}%`} positive={totalPnl >= 0} />
           <Widget title="PnL" value={`${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(2)}`} positive={totalPnl >= 0} />
@@ -67,14 +66,13 @@ export default function Dashboard() {
           <Widget title="LIMITE DIÁRIO" value="300 $" />
         </div>
 
-        {/* Main chart + side */}
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
           <div style={widgetStyle}>
             <div style={widgetTitle}>EQUITY CURVE</div>
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={chartData}>
-                <Line type="monotone" dataKey="BTC" stroke="#f59e0b" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="ETH" stroke="#94a3b8" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="BTC" stroke="#d4a017" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="ETH" stroke="#a0a0a0" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="SOL" stroke="#22c55e" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -83,7 +81,7 @@ export default function Dashboard() {
             {bots.map(bot => (
               <div key={bot} style={{ ...widgetStyle, padding: "0.85rem 1rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: "0.8rem", color: "#94a3b8" }}>{bot}</span>
+                  <span style={{ fontSize: "0.8rem", color: "#888" }}>{bot}</span>
                   <span style={{ color: (latest[bot] - 1000) >= 0 ? "#22c55e" : "#ef4444", fontSize: "0.85rem" }}>
                     {(latest[bot] - 1000) >= 0 ? "+" : ""}{(latest[bot] - 1000).toFixed(2)}
                   </span>
@@ -94,15 +92,14 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Trades */}
         <div style={widgetStyle}>
           <div style={widgetTitle}>ÚLTIMOS TRADES</div>
           {trades.length === 0 ? (
-            <div style={{ color: "#64748b", fontSize: "0.9rem" }}>Nenhum trade registado. Bots em vigilância.</div>
+            <div style={{ color: "#666", fontSize: "0.9rem" }}>Nenhum trade registado. Bots em vigilância.</div>
           ) : (
             <table style={{ width: "100%", fontSize: "0.85rem" }}>
               <thead>
-                <tr style={{ color: "#64748b", textAlign: "left" }}>
+                <tr style={{ color: "#666", textAlign: "left" }}>
                   <th style={{ padding: "0.4rem 0" }}>Bot</th>
                   <th>Símbolo</th>
                   <th>Lado</th>
@@ -112,7 +109,7 @@ export default function Dashboard() {
               </thead>
               <tbody>
                 {trades.map(t => (
-                  <tr key={t.id} style={{ borderTop: "1px solid #1e293b" }}>
+                  <tr key={t.id} style={{ borderTop: "1px solid #222" }}>
                     <td style={{ padding: "0.5rem 0" }}>{t.bot}</td>
                     <td>{t.symbol}</td>
                     <td>{t.side}</td>
@@ -132,8 +129,8 @@ export default function Dashboard() {
 }
 
 const widgetStyle: React.CSSProperties = {
-  background: "#111827",
-  border: "1px solid #1e293b",
+  background: "#111",
+  border: "1px solid #222",
   borderRadius: 10,
   padding: "1rem 1.1rem"
 };
@@ -141,7 +138,7 @@ const widgetStyle: React.CSSProperties = {
 const widgetTitle: React.CSSProperties = {
   fontSize: "0.7rem",
   letterSpacing: "0.08em",
-  color: "#64748b",
+  color: "#666",
   marginBottom: "0.75rem"
 };
 
@@ -149,7 +146,7 @@ function Widget({ title, value, sub, positive }: any) {
   return (
     <div style={widgetStyle}>
       <div style={widgetTitle}>{title}</div>
-      <div style={{ fontSize: "1.35rem", fontWeight: 600, color: positive === false ? "#ef4444" : positive ? "#22c55e" : "#e2e8f0" }}>{value}</div>
+      <div style={{ fontSize: "1.35rem", fontWeight: 600, color: positive === false ? "#ef4444" : positive ? "#22c55e" : "#e5e5e5" }}>{value}</div>
       {sub && <div style={{ fontSize: "0.8rem", color: positive ? "#22c55e" : "#ef4444", marginTop: "0.15rem" }}>{sub}</div>}
     </div>
   );
