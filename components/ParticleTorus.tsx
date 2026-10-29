@@ -250,17 +250,9 @@ function buildCloud(slices: TorusSlice[], count: number): Cloud {
   return { positions, colors, sizes, anchors };
 }
 
-function labelPlaces(count: number): { side: "left" | "right"; top: string }[] {
-  const rows = Math.ceil(count / 2);
-  return Array.from({ length: count }, (_, index) => {
-    const row = Math.floor(index / 2);
-    const top = rows <= 1 ? 42 : 8 + (row * 70) / (rows - 1);
-    return { side: index % 2 === 0 ? "left" : "right", top: `${top}%` };
-  });
-}
-
 export default function ParticleTorus({ slices, total }: { slices: TorusSlice[]; total: number }) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const glRef = useRef<HTMLCanvasElement>(null);
   const lineRef = useRef<HTMLCanvasElement>(null);
   const yawRef = useRef(0.4);
@@ -280,9 +272,10 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
 
   useEffect(() => {
     const wrap = wrapRef.current;
+    const stage = stageRef.current;
     const canvas = glRef.current;
     const lines = lineRef.current;
-    if (!wrap || !canvas || !lines) return;
+    if (!wrap || !stage || !canvas || !lines) return;
 
     const gl = canvas.getContext("webgl", {
       alpha: true,
@@ -323,7 +316,7 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
     let count = 0;
     let signature = "";
     const upload = () => {
-      const narrow = wrap.clientWidth < 720;
+      const narrow = stage.clientWidth < 720;
       const nextCount = narrow ? 2600 : 8200;
       const nextSignature = `${nextCount}|${slicesRef.current.map((slice) => `${slice.id}:${slice.equity.toFixed(2)}:${slice.color}`).join("|")}`;
       if (nextSignature === signature) return;
@@ -355,7 +348,7 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
       });
     };
     const resize = () => {
-      const rect = wrap.getBoundingClientRect();
+      const rect = stage.getBoundingClientRect();
       const narrow = rect.width < 720;
       const dpr = Math.min(window.devicePixelRatio || 1, narrow ? 1.25 : 1.6);
       cssW = Math.max(1, rect.width);
@@ -363,14 +356,17 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
       upload();
       canvas.width = Math.round(cssW * dpr);
       canvas.height = Math.round(cssH * dpr);
-      lines.width = canvas.width;
-      lines.height = canvas.height;
+      const wrapRect = wrap.getBoundingClientRect();
+      const lineScale = Math.min(window.devicePixelRatio || 1, narrow ? 1.25 : 1.6);
+      lines.width = Math.max(1, Math.round(wrapRect.width * lineScale));
+      lines.height = Math.max(1, Math.round(wrapRect.height * lineScale));
       gl.viewport(0, 0, canvas.width, canvas.height);
       measure();
     };
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(wrap);
+    observer.observe(stage);
 
     let raf = 0;
     let running = true;
@@ -387,16 +383,9 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
       const narrow = cssW < 720;
       if (!reducedRef.current) yawRef.current += narrow ? 0.0042 : 0.0034;
       const labelsNow = [...wrap.querySelectorAll<HTMLElement>(".td-viz-label")];
-      const labelW = Math.max(72, ...labelsNow.map((label) => label.offsetWidth));
-      const labelH = Math.max(46, ...labelsNow.map((label) => label.offsetHeight));
-      const gap = narrow ? 16 : 22;
-      const pad = 10;
-      const maxRadius = Math.min(
-        cssW / 2 - pad - labelW / 2 - gap,
-        cssH / 2 - pad - labelH / 2 - gap
-      );
+      const maxRadius = Math.min(cssW, cssH) / 2 - (narrow ? 8 : 12);
       const { cameraZ, fov } = frameCamera(cssW / cssH);
-      const scale = scaleForRim(cssW, cssH, Math.max(42, maxRadius - 12), cameraZ, fov);
+      const scale = scaleForRim(cssW, cssH, Math.max(36, maxRadius), cameraZ, fov);
       const mvp = buildMvp(yawRef.current, TILT, cssW / cssH, cameraZ, fov, scale);
       gl.useProgram(program);
       gl.uniformMatrix4fv(mvpLoc, false, mvp);
@@ -414,55 +403,46 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawArrays(gl.POINTS, 0, count);
 
-      const dpr = lines.width / cssW;
+      const wrapRect = wrap.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      const lineW = wrapRect.width;
+      const lineH = wrapRect.height;
+      const dpr = lines.width / Math.max(1, lineW);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, cssW, cssH);
+      ctx.clearRect(0, 0, lineW, lineH);
+      const offX = stageRect.left - wrapRect.left;
+      const offY = stageRect.top - wrapRect.top;
       const current = slicesRef.current;
       const labels = labelsNow;
-      const origin = project(mvp, 0, 0, 0, cssW, cssH) || { x: cssW / 2, y: cssH / 2 };
-      labels.forEach((label, index) => {
+      labels.forEach((label) => {
+        const index = Number(label.dataset.index);
         const samples = cloud.anchors[index];
         if (!samples || !current[index]) return;
-        const projected = samples
-          .map((point) => project(mvp, point.x, point.y, point.z, cssW, cssH))
-          .filter((point): point is { x: number; y: number } => point != null);
-        if (!projected.length) return;
-        const mid = projected[Math.floor(projected.length / 2)];
-        const dx = mid.x - origin.x;
-        const dy = mid.y - origin.y;
-        const radial = Math.hypot(dx, dy) || 1;
-        const halfW = label.offsetWidth / 2;
-        const halfH = label.offsetHeight / 2;
-        const orbit = Math.max(42, maxRadius - 12) + gap;
-        const lx = Math.min(cssW - halfW - 6, Math.max(halfW + 6, origin.x + (dx / radial) * orbit));
-        const ly = Math.min(cssH - halfH - 6, Math.max(halfH + 6, origin.y + (dy / radial) * orbit));
-        label.style.left = `${lx}px`;
-        label.style.top = `${ly}px`;
-        label.style.right = "auto";
-        label.style.transform = "translate(-50%, -50%)";
-        label.style.opacity = "1";
-        const pull = Math.min(halfW, halfH) + 4;
-        const ldx = lx - mid.x;
-        const ldy = ly - mid.y;
-        const llen = Math.hypot(ldx, ldy) || 1;
-        const end = { x: lx - (ldx / llen) * pull, y: ly - (ldy / llen) * pull };
-        const strands = [mid, projected[2] || mid, projected[projected.length - 3] || mid];
-        strands.forEach((start, strand) => {
-          const color = current[index].color;
-          const alpha = strand === 0 ? 0.95 : 0.42;
-          const gradient = ctx.createLinearGradient(start.x, start.y, end.x, end.y);
-          gradient.addColorStop(0, rgba(color, 0.15));
-          gradient.addColorStop(0.55, rgba(color, alpha));
-          gradient.addColorStop(1, rgba(color, 0.05));
-          ctx.beginPath();
-          ctx.moveTo(start.x, start.y);
-          ctx.lineTo(end.x, end.y);
-          ctx.strokeStyle = gradient;
-          ctx.lineWidth = strand === 0 ? 1.15 : 0.65;
-          ctx.shadowColor = strand === 0 ? color : "transparent";
-          ctx.shadowBlur = strand === 0 ? 6 : 0;
-          ctx.stroke();
-        });
+        const rect = label.getBoundingClientRect();
+        const above = rect.top + rect.height / 2 < stageRect.top + stageRect.height / 2;
+        const ax = rect.left + rect.width / 2 - wrapRect.left;
+        const ay = (above ? rect.bottom : rect.top) - wrapRect.top;
+        const originX = offX + cssW / 2;
+        const originY = offY + cssH / 2;
+        const dx = ax - originX;
+        const dy = ay - originY;
+        const dist = Math.hypot(dx, dy) || 1;
+        const rim = Math.min(cssW, cssH) / 2 - (narrow ? 14 : 18);
+        const tx = originX + (dx / dist) * rim;
+        const ty = originY + (dy / dist) * rim;
+        const color = current[index].color;
+        const gradient = ctx.createLinearGradient(tx, ty, ax, ay);
+        gradient.addColorStop(0, rgba(color, 0.15));
+        gradient.addColorStop(0.45, rgba(color, 0.9));
+        gradient.addColorStop(1, rgba(color, 0.15));
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(ax, ay);
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 1.15;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 6;
+        ctx.stroke();
       });
       ctx.shadowBlur = 0;
     };
@@ -495,36 +475,29 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
     };
   }, []);
 
-  const places = labelPlaces(slices.length);
+  const split = Math.ceil(slices.length / 2);
+  const topSlices = slices.slice(0, split);
+  const bottomSlices = slices.slice(split);
+  const renderLabel = (slice: TorusSlice, index: number) => (
+    <div key={slice.id} className="td-viz-label" data-index={index} style={{ borderColor: rgba(slice.color, 0.55) }}>
+      <span className="td-viz-name" style={{ color: slice.color }}>{slice.label}</span>
+      <span className="td-viz-eq">{money(slice.equity)}</span>
+      <span className="td-viz-pnl" style={{ color: slice.pnl >= 0 ? "#22c55e" : "#ef4444" }}>{pnlText(slice.pnl)}</span>
+    </div>
+  );
 
   return (
-    <div className="td-viz" ref={wrapRef} aria-hidden={false}>
-      <canvas ref={glRef} className="td-viz-gl" aria-hidden />
+    <div className="td-viz" ref={wrapRef}>
       <canvas ref={lineRef} className="td-viz-lines" aria-hidden />
-      <div className="td-viz-center">
-        <span className="td-label">TOTAL</span>
-        <strong>{money(total)}</strong>
+      <div className="td-viz-row">{topSlices.map((slice, index) => renderLabel(slice, index))}</div>
+      <div className="td-viz-stage" ref={stageRef}>
+        <canvas ref={glRef} className="td-viz-gl" aria-hidden />
+        <div className="td-viz-center">
+          <span className="td-label">TOTAL</span>
+          <strong>{money(total)}</strong>
+        </div>
       </div>
-      {slices.map((slice, index) => {
-        const place = places[index];
-        return (
-          <div
-            key={slice.id}
-            className="td-viz-label"
-            data-side={place.side}
-            style={{
-              top: place.top,
-              left: place.side === "left" ? 0 : undefined,
-              right: place.side === "right" ? 0 : undefined,
-              borderColor: rgba(slice.color, 0.55),
-            }}
-          >
-            <span className="td-viz-name" style={{ color: slice.color }}>{slice.label}</span>
-            <span className="td-viz-eq">{money(slice.equity)}</span>
-            <span className="td-viz-pnl" style={{ color: slice.pnl >= 0 ? "#22c55e" : "#ef4444" }}>{pnlText(slice.pnl)}</span>
-          </div>
-        );
-      })}
+      <div className="td-viz-row">{bottomSlices.map((slice, index) => renderLabel(slice, split + index))}</div>
     </div>
   );
 }

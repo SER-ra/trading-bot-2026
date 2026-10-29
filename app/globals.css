@@ -188,6 +188,13 @@ body {
   margin-bottom: 0.15rem;
 }
 
+.td-bot-status {
+  display: none;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  color: #777;
+}
+
 .td-spark {
   height: 56px;
 }
@@ -200,9 +207,24 @@ body {
 
 .td-viz {
   position: relative;
-  height: 580px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
   width: 100%;
+  height: auto;
   overflow: visible;
+}
+
+.td-viz-stage {
+  position: relative;
+  height: 236px;
+  flex: none;
+}
+
+.td-viz-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.3rem;
 }
 
 .td-viz-gl,
@@ -239,18 +261,15 @@ body {
 }
 
 .td-viz-label {
-  position: absolute;
+  position: static;
   z-index: 4;
-  left: 50%;
-  top: 50%;
-  min-width: 4.2rem;
-  padding: 0.26rem 0.38rem 0.22rem;
+  min-width: 0;
+  width: 100%;
+  padding: 0.28rem 0.2rem 0.22rem;
   background: rgba(8, 8, 8, 0.84);
   border: 1px solid #2a2a2a;
   border-radius: 8px;
   line-height: 1.2;
-  pointer-events: none;
-  opacity: 0;
   text-align: center;
 }
 
@@ -312,6 +331,13 @@ body {
   font-size: 0.6rem;
   color: #666;
   letter-spacing: 0.08em;
+}
+
+.td-log-section {
+  margin-top: 0.35rem;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  color: #555;
 }
 
 .td-empty {
@@ -405,9 +431,8 @@ body {
     padding: 0.85rem 0.9rem 0.8rem;
     overflow: visible;
   }
-  .td-viz {
-    height: 560px;
-    overflow: visible;
+  .td-viz-stage {
+    height: 300px;
   }
   .td-viz-center strong {
     font-size: 1.45rem;
@@ -421,8 +446,176 @@ body {
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) and (max-width: 1279px) {
+  .td-shell {
+    max-width: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "kpis kpis"
+      "center book"
+      "bots bots"
+      "chart chart";
+    gap: 0.65rem;
+    padding: 0.9rem 1rem 2rem;
+  }
+  .td-kpis { grid-area: kpis; }
+  .td-alloc { grid-area: center; margin: 0; }
+  .td-log-card { grid-area: book; margin: 0; height: 100%; }
+  .td-log { height: 100%; min-height: 280px; max-height: 520px; }
+  .td-bots { grid-area: bots; grid-template-columns: 1fr 1fr; }
+  .td-chart-card { grid-area: chart; }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
   .td-bots {
     grid-template-columns: 1fr 1fr 1fr;
   }
+}
+
+@media (min-width: 1280px) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+  .td-root {
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .td-shell {
+    max-width: none;
+    height: 100%;
+    margin: 0;
+    padding: 0.5rem 0.6rem;
+    display: grid;
+    grid-template-columns: minmax(200px, 250px) minmax(0, 1fr) minmax(220px, 290px);
+    grid-template-rows: auto minmax(0, 1fr) minmax(112px, 18vh);
+    grid-template-areas:
+      "kpis kpis kpis"
+      "bots center book"
+      "chart chart chart";
+    gap: 0.4rem;
+    overflow: hidden;
+  }
+  .td-feeds {
+    display: block;
+  }
+  .td-kpis {
+    grid-area: kpis;
+    display: flex;
+    align-items: stretch;
+    gap: 0.4rem;
+    min-height: 0;
+  }
+  .td-top {
+    width: auto;
+    margin: 0;
+    padding: 0 0.35rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .td-summary {
+    flex: 1.1;
+    margin: 0;
+    padding: 0.35rem 0.7rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+    text-align: left;
+  }
+  .td-total { font-size: 1.25rem; margin: 0; }
+  .td-pnl { font-size: 0.85rem; }
+  .td-metrics {
+    flex: 1.6;
+    margin: 0;
+    gap: 0.4rem;
+  }
+  .td-metric { padding: 0.35rem 0.3rem; }
+  .td-metric-value { font-size: 0.95rem; margin: 0; }
+  .td-alloc {
+    grid-area: center;
+    margin: 0;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 0.4rem 0.5rem 0.45rem;
+    overflow: hidden;
+  }
+  .td-viz {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+  }
+  .td-viz-stage {
+    flex: 1 1 0;
+    height: 0;
+    min-height: 0;
+  }
+  .td-bots {
+    grid-area: bots;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    gap: 0.28rem;
+  }
+  .td-bot {
+    flex: 1 1 0;
+    min-height: 0;
+    padding: 0.32rem 0.45rem 0.28rem;
+    display: flex;
+    flex-direction: column;
+  }
+  .td-bot-eq { font-size: 0.95rem; margin: 0; }
+  .td-bot-status { display: block; }
+  .td-bot-meta { display: none; }
+  .td-spark { height: 26px; flex: none; }
+  .td-chart-card {
+    grid-area: chart;
+    margin: 0;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0.35rem 0.55rem 0.3rem;
+    overflow: hidden;
+  }
+  .td-chart {
+    flex: 1 1 0;
+    height: 0;
+    min-height: 0;
+    position: relative;
+  }
+  .td-legend { margin-top: 0.1rem; }
+  .td-log-card {
+    grid-area: book;
+    margin: 0;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .td-log {
+    flex: 1 1 0;
+    height: 0;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
+.td-feeds {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4;
+  overflow: visible;
 }
