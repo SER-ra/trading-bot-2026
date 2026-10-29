@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { TorusSlice } from "../components/ParticleTorus";
 import {
   type BotProfile,
@@ -13,6 +13,7 @@ import {
   axisTicks,
   curveDomain,
   formatPnl,
+  formatTime,
   isClosedTrade,
   isOpenTrade,
   isTestTrade,
@@ -125,6 +126,32 @@ export default function Dashboard() {
   const currentDD = peak > 0 ? ((peak - totalEquity) / peak) * 100 : 0;
 
   const log = sortTradesNewest(liveTrades);
+  const openTrades = log.filter(isOpenTrade);
+  const closedPnls = closedTrades.map((trade) => Number(trade.pnl)).filter((value) => Number.isFinite(value));
+  const winPnls = closedPnls.filter((value) => value > 0);
+  const lossPnls = closedPnls.filter((value) => value < 0);
+  const avgWin = winPnls.length ? winPnls.reduce((sum, value) => sum + value, 0) / winPnls.length : null;
+  const avgLoss = lossPnls.length ? lossPnls.reduce((sum, value) => sum + value, 0) / lossPnls.length : null;
+  const totalSeries = curve.map((row) => {
+    let sum = 0;
+    let count = 0;
+    for (const bot of bots) {
+      const value = row.values[bot.id];
+      if (value != null) {
+        sum += value;
+        count += 1;
+      }
+    }
+    return { label: row.label, total: count ? sum : null };
+  });
+  const totalDomain = paddedDomain(
+    totalSeries.map((row) => row.total).filter((value): value is number => value != null),
+    0.12
+  );
+  const latestStamp = equity.reduce((best, point) => {
+    const time = Date.parse(point.timestamp);
+    return time > best ? time : best;
+  }, -Infinity);
   const singlePointBots = new Set(
     chartBots
       .filter((bot) => curve.filter((row) => row.values[bot.id] != null).length < 2)
@@ -137,124 +164,137 @@ export default function Dashboard() {
 
       <div className="td-shell">
         <PanelFeeds />
-        <div className="td-kpis">
-        <div className="td-top">
-          <div className="td-brand">TRADING</div>
-          <div className="td-live">● LIVE</div>
+        <div className="td-ticker">
+          <span className="td-live">● LIVE</span>
+          <span className="td-brand">TRADING</span>
+          <span>EQ {`$${totalEquity.toFixed(2)}`}</span>
+          <span style={{ color: pnlColor }}>DIA {formatPnl(totalPnl)}</span>
+          <span>OPEN {openTrades.length}</span>
+          <span>WR {rate.toFixed(0)}%</span>
         </div>
 
-        <div className="td-card td-summary">
-          <div className="td-label">TOTAL EQUITY</div>
-          <div className="td-total">{`$${totalEquity.toFixed(2)}`}</div>
-          <div className="td-pnl" style={{ color: pnlColor }}>
-            {`DIA ${formatPnl(totalPnl)}`}
+        <div className="td-card td-wallet">
+          <div className="td-label">WALLET</div>
+          <div className="td-total" style={{ color: "#3dff9a" }}>{`$${totalEquity.toFixed(2)}`}</div>
+          <div className="td-wallet-stats">
+            <span>WIN {rate.toFixed(0)}%</span>
+            <span>TRADES {closedTrades.length}</span>
+            <span>AVG WIN {avgWin == null ? "—" : formatPnl(avgWin)}</span>
+            <span>AVG LOSS {avgLoss == null ? "—" : formatPnl(avgLoss)}</span>
+            <span style={{ color: pnlColor }}>DIA {formatPnl(totalPnl)}</span>
           </div>
         </div>
 
-        <div className="td-metrics">
-          <div className="td-card td-metric">
-            <div className="td-label">WIN RATE</div>
-            <div className="td-metric-value" style={{ color: rate >= 50 ? "#22c55e" : "#ef4444" }}>
-              {`${rate.toFixed(0)}%`}
-            </div>
-          </div>
-          <div className="td-card td-metric">
-            <div className="td-label">DRAWDOWN</div>
-            <div className="td-metric-value" style={{ color: currentDD > 5 ? "#ef4444" : "#ccc" }}>
-              {`${currentDD.toFixed(1)}%`}
-            </div>
-          </div>
-          <div className="td-card td-metric">
-            <div className="td-label">TRADES</div>
-            <div className="td-metric-value">{closedTrades.length}</div>
+        <div className="td-card td-price">
+          <div className="td-label">EQUITY</div>
+          <div className="td-mini">
+            {mounted && totalSeries.length > 0 && (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={totalSeries} margin={{ top: 6, right: 4, left: 0, bottom: 0 }}>
+                  <Area type="monotone" dataKey="total" stroke="#2ee6a6" fill="#2ee6a6" fillOpacity={0.18} strokeWidth={1.4} dot={false} isAnimationActive={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
+
+        <div className="td-card td-status">
+          <div className="td-label">STATUS</div>
+          <div className="td-status-list">
+            {bots.map((bot) => {
+              const open = openTrades.some((trade) => trade.bot === bot.id);
+              return (
+                <div key={bot.id} className="td-status-row">
+                  <i style={{ background: bot.color }} />
+                  <span>{bot.label}</span>
+                  <span className="td-status-time">{lastSeen(equity, bot.id)}</span>
+                  <span>{open ? "OPEN" : "FLAT"}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <AllocationDonut bots={bots} latest={latest} total={totalEquity} />
 
-        <div className="td-card td-chart-card">
-          <div className="td-chart-head">
-            <div className="td-label">EQUITY TOTAL</div>
-            {curve.length > 0 && (
-              <div className="td-range">
-                {curve[0].label} — {curve[curve.length - 1].label}
-              </div>
-            )}
-          </div>
-          <div className="td-chart">
-            {mounted && chartData.length > 0 && (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid stroke="#171717" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tick={<TimeTick />}
-                  axisLine={false}
-                  tickLine={false}
-                  minTickGap={80}
-                  interval="preserveStartEnd"
-                  height={28}
-                />
-                <YAxis
-                  domain={yDomain}
-                  ticks={axisTicks(yDomain)}
-                  width={68}
-                  tickFormatter={(value: number) => `$${Number(value).toFixed(2)}`}
-                  tick={{ fill: "#737373", fontSize: 10, fontFamily: "JetBrains Mono, ui-monospace, monospace" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  content={<EquityTooltip />}
-                  cursor={{ stroke: "#333", strokeWidth: 1 }}
-                />
-                {chartBots.map((bot) => (
-                  <Line
-                    key={bot.id}
-                    type="monotone"
-                    dataKey={bot.id}
-                    name={bot.label}
-                    stroke={bot.color}
-                    strokeWidth={1.8}
-                    dot={singlePointBots.has(bot.id) ? <SeriesDot color={bot.color} /> : false}
-                    activeDot={{ r: 3, strokeWidth: 0, fill: bot.color }}
-                    connectNulls
-                    isAnimationActive={false}
-                  />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-            )}
-          </div>
-          <div className="td-legend">
-            {chartBots.map((bot) => (
-              <span key={bot.id} className="td-legend-item">
-                <i style={{ background: bot.color }} />
-                {bot.label}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="td-bots">
+        <div className="td-tiles">
           {bots.map((bot) => (
             <BotCard key={bot.id} bot={bot} equity={latest[bot.id]} points={equity} trades={liveTrades} />
           ))}
         </div>
 
-        <div className="td-card td-log-card">
-          <div className="td-log">
-            <div className="td-log-sticky">ORDERS</div>
-            <div className="td-log-section">OPEN</div>
-            <OrderRows trades={log.filter(isOpenTrade)} bots={bots} />
-            <div className="td-log-section">FILLS</div>
-            <OrderRows trades={log.filter(isClosedTrade)} bots={bots} empty="No fills" />
+        <div className="td-card td-tape">
+          <div className="td-label">TAPE</div>
+          <div className="td-tape-head">
+            <span>TIME</span><span>BOT</span><span>SIDE</span><span>PRICE</span><span>SIZE</span><span>P&L</span>
           </div>
+          <div className="td-tape-body">
+            {log.length === 0 ? <div className="td-empty">No trades</div> : log.map((trade) => {
+              const bot = bots.find((item) => item.id === trade.bot);
+              const when = Date.parse(trade.closed_at || trade.opened_at || "");
+              const price = isClosedTrade(trade) ? trade.exit_price ?? trade.entry_price : trade.entry_price;
+              const pnl = Number(trade.pnl);
+              const showPnl = isClosedTrade(trade) && Number.isFinite(pnl);
+              return (
+                <div key={trade.id} className="td-tape-row">
+                  <span>{Number.isFinite(when) ? formatTime(when) : "—"}</span>
+                  <span style={{ color: bot?.color }}>{bot?.label ?? trade.bot}</span>
+                  <span>{(trade.side || "—").toString().toUpperCase()}</span>
+                  <span>{price == null ? "—" : Number(price).toFixed(2)}</span>
+                  <span>{trade.quantity == null ? "—" : Number(trade.quantity).toFixed(3)}</span>
+                  <span style={{ color: showPnl ? (pnl >= 0 ? "#3dff9a" : "#ff5d6c") : "#777" }}>{showPnl ? formatPnl(pnl) : "—"}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="td-card td-funnel">
+          <div className="td-chart-head">
+            <div className="td-label">EQUITY</div>
+            {curve.length > 0 && <div className="td-range">{curve[0].label} — {curve[curve.length - 1].label}</div>}
+          </div>
+          <div className="td-chart">
+            {mounted && totalSeries.length > 0 && (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={totalSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="eqCone" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3ee0ff" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#3ee0ff" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="#141414" vertical={false} />
+                  <XAxis dataKey="label" tick={<TimeTick />} axisLine={false} tickLine={false} minTickGap={64} interval="preserveStartEnd" height={22} />
+                  <YAxis domain={totalDomain} ticks={axisTicks(totalDomain)} width={58} tickFormatter={(value: number) => `$${Number(value).toFixed(0)}`} tick={{ fill: "#737373", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<EquityTooltip />} cursor={{ stroke: "#333" }} />
+                  <Area type="monotone" dataKey="total" name="TOTAL" stroke="#3ee0ff" fill="url(#eqCone)" strokeWidth={1.6} dot={false} connectNulls isAnimationActive={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        <div className="td-foot">
+          <span>BOTS {bots.length}</span>
+          <span>OPEN {openTrades.length}</span>
+          <span>FILLS {closedTrades.length}</span>
+          <span>DD {currentDD.toFixed(1)}%</span>
+          <span>UPDATED {Number.isFinite(latestStamp) && latestStamp > 0 ? formatTime(latestStamp) : "—"}</span>
         </div>
       </div>
     </div>
   );
+}
+
+function lastSeen(points: EquityPoint[], botId: string) {
+  let best = -Infinity;
+  for (const point of points) {
+    if (point.bot !== botId) continue;
+    const time = Date.parse(point.timestamp);
+    if (time > best) best = time;
+  }
+  return best > 0 ? formatTime(best) : "—";
 }
 
 function AllocationDonut({
@@ -386,47 +426,46 @@ function PanelFeeds() {
       const stage = shell.querySelector(".td-viz-stage");
       if (!stage) return;
       const stageBox = stage.getBoundingClientRect();
-      const cards = [...shell.querySelectorAll<HTMLElement>(".td-bot")];
-      const book = shell.querySelector(".td-log-card");
-      if (!book) return;
-      const bookBox = book.getBoundingClientRect();
+      const cards = [...shell.querySelectorAll<HTMLElement>(".td-tiles .td-bot")];
       cards.forEach((card) => {
         const box = card.getBoundingClientRect();
         const color = getComputedStyle(card).borderTopColor || "#888";
-        const y = Math.min(stageBox.bottom - 10, Math.max(stageBox.top + 10, box.top + box.height / 2)) - shellBox.top;
         const y1 = box.top + box.height / 2 - shellBox.top;
-        const x1 = box.right - shellBox.left;
-        const x2 = stageBox.left - shellBox.left + 4;
+        const x1 = box.left - shellBox.left;
+        const x2 = stageBox.right - shellBox.left - 2;
+        const y2 = Math.min(stageBox.bottom - 12, Math.max(stageBox.top + 12, box.top + box.height / 2)) - shellBox.top;
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         const mid = (x1 + x2) / 2;
-        path.setAttribute("d", `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y}, ${x2} ${y}`);
+        path.setAttribute("d", `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", color);
-        path.setAttribute("stroke-width", "1.1");
-        path.setAttribute("opacity", "0.75");
+        path.setAttribute("stroke-width", "1.15");
+        path.setAttribute("opacity", "0.8");
         svg.appendChild(path);
-        const yb = Math.min(bookBox.bottom - 16, Math.max(bookBox.top + 16, box.top + box.height / 2)) - shellBox.top;
-        const xb1 = bookBox.left - shellBox.left;
-        const xb2 = stageBox.right - shellBox.left - 4;
-        const pathR = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        const midR = (xb1 + xb2) / 2;
-        pathR.setAttribute("d", `M ${xb1} ${yb} C ${midR} ${yb}, ${midR} ${y}, ${xb2} ${y}`);
-        pathR.setAttribute("fill", "none");
-        pathR.setAttribute("stroke", color);
-        pathR.setAttribute("stroke-width", "1.1");
-        pathR.setAttribute("opacity", "0.55");
-        svg.appendChild(pathR);
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        dot.setAttribute("r", "2.2");
+        dot.setAttribute("fill", color);
+        const motion = document.createElementNS("http://www.w3.org/2000/svg", "animateMotion");
+        motion.setAttribute("dur", "2.8s");
+        motion.setAttribute("repeatCount", "indefinite");
+        motion.setAttribute("path", path.getAttribute("d") || "");
+        motion.setAttribute("keyPoints", "0;1");
+        motion.setAttribute("keyTimes", "0;1");
+        motion.setAttribute("calcMode", "linear");
+        dot.appendChild(motion);
+        svg.appendChild(dot);
       });
     };
     draw();
     const observer = new ResizeObserver(draw);
     observer.observe(shell);
     window.addEventListener("resize", draw);
-    const timer = window.setInterval(draw, 1000);
+    const later = window.setTimeout(draw, 700);
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", draw);
-      window.clearInterval(timer);
+      window.clearTimeout(later);
     };
   }, []);
   return <svg ref={ref} className="td-feeds" aria-hidden />;
