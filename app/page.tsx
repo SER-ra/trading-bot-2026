@@ -265,9 +265,9 @@ export default function Dashboard() {
             {mounted && totalSeries.length > 0 && (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={totalSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke="#141414" vertical={false} />
+                  <CartesianGrid stroke="#1a282c" vertical={false} />
                   <XAxis dataKey="label" tick={<TimeTick />} axisLine={false} tickLine={false} minTickGap={64} interval="preserveStartEnd" height={22} />
-                  <YAxis domain={totalDomain} ticks={axisTicks(totalDomain)} width={56} tickFormatter={(value: number) => formatPnl(value)} tick={{ fill: "#737373", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis domain={totalDomain} ticks={axisTicks(totalDomain)} width={56} tickFormatter={(value: number) => formatPnl(value)} tick={{ fill: "#c5c5c5", fontSize: 12 }} axisLine={false} tickLine={false} />
                   <ReferenceLine y={0} stroke="#3a3a3a" />
                   <Tooltip content={<PnlTooltip />} cursor={{ stroke: "#333" }} />
                   <Area type="monotone" dataKey="gain" stroke="none" fill="#3dff9a" fillOpacity={0.22} baseValue={0} dot={false} isAnimationActive={false} />
@@ -440,11 +440,13 @@ function PanelFeeds() {
         const y2 = Math.min(stageBox.bottom - 12, Math.max(stageBox.top + 12, box.top + box.height / 2)) - shellBox.top;
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         const mid = (x1 + x2) / 2;
-        path.setAttribute("d", `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`);
+        const bow = (y2 - y1) * 0.22;
+        path.setAttribute("d", `M ${x1} ${y1} C ${mid} ${y1 + bow}, ${x2 + 36} ${y2 - bow * 0.4}, ${x2} ${y2}`);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", color);
-        path.setAttribute("stroke-width", "1.15");
-        path.setAttribute("opacity", "0.8");
+        path.setAttribute("stroke-width", "1.25");
+        path.setAttribute("stroke-linecap", "round");
+        path.setAttribute("opacity", "0.85");
         svg.appendChild(path);
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
         const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
@@ -503,7 +505,7 @@ function TimeTick({
       dy={14}
       textAnchor={anchor}
       fill="#737373"
-      fontSize={10}
+      fontSize={12}
       fontFamily="JetBrains Mono, ui-monospace, monospace"
     >
       {payload?.value}

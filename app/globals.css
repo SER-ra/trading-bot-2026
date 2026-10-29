@@ -47,19 +47,19 @@ body {
 
 .td-brand {
   letter-spacing: 0.12em;
-  font-size: 0.7rem;
-  color: #777;
+  font-size: 0.75rem;
+  color: #c5d5d5;
 }
 
 .td-live {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: #22c55e;
 }
 
 .td-card {
   background: rgba(10, 10, 10, 0.85);
-  border: 1px solid #1c1c1c;
-  border-radius: 12px;
+  border: 1px solid rgba(110, 190, 200, 0.28);
+  border-radius: 14px;
 }
 
 .td-summary {
@@ -70,9 +70,9 @@ body {
 }
 
 .td-label {
-  font-size: 0.6rem;
-  color: #666;
-  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: #c5d5d5;
+  letter-spacing: 0.06em;
 }
 
 .td-total {
@@ -120,8 +120,8 @@ body {
 }
 
 .td-range {
-  font-size: 0.6rem;
-  color: #666;
+  font-size: 0.75rem;
+  color: #c5c5c5;
   text-align: right;
 }
 
@@ -142,8 +142,8 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.68rem;
-  color: #c4c4c4;
+  font-size: 0.75rem;
+  color: #d0d0d0;
 }
 
 .td-legend-item i {
@@ -183,16 +183,16 @@ body {
 }
 
 .td-bot-meta {
-  font-size: 0.6rem;
-  color: #666;
+  font-size: 0.75rem;
+  color: #c0c0c0;
   margin-bottom: 0.15rem;
 }
 
 .td-bot-status {
   display: none;
-  font-size: 0.55rem;
-  letter-spacing: 0.08em;
-  color: #777;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  color: #c0c0c0;
 }
 
 .td-spark {
@@ -276,19 +276,20 @@ body {
 .td-viz-name {
   display: block;
   font-weight: 600;
-  font-size: 0.64rem;
+  font-size: 0.8rem;
   letter-spacing: 0.06em;
 }
 
 .td-viz-eq {
   display: block;
-  font-size: 0.66rem;
+  font-size: 0.875rem;
   color: #e8e8e8;
 }
 
 .td-viz-pnl {
   display: block;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
+  color: #d0d0d0;
 }
 
 .td-log-card {
@@ -328,21 +329,21 @@ body {
   margin: 0 -0.45rem 0 -0.85rem;
   padding: 0.75rem 0.85rem 0.4rem;
   background: rgba(12, 12, 12, 0.98);
-  font-size: 0.6rem;
-  color: #666;
-  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: #c5d0d0;
+  letter-spacing: 0.06em;
 }
 
 .td-log-section {
   margin-top: 0.35rem;
-  font-size: 0.55rem;
-  letter-spacing: 0.08em;
-  color: #555;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  color: #b0b8b8;
 }
 
 .td-empty {
-  color: #666;
-  font-size: 0.72rem;
+  color: #c0c0c0;
+  font-size: 0.75rem;
   padding: 0.7rem 0 0.8rem;
 }
 
@@ -373,8 +374,8 @@ body {
 }
 
 .td-trade-sub {
-  font-size: 0.62rem;
-  color: #777;
+  font-size: 0.75rem;
+  color: #c4c4c4;
   margin-top: 0.12rem;
 }
 
@@ -383,12 +384,12 @@ body {
   border: 1px solid #2a2a2a;
   border-radius: 8px;
   padding: 0.45rem 0.6rem;
-  font-size: 11px;
+  font-size: 12px;
   font-family: "JetBrains Mono", ui-monospace, monospace;
 }
 
 .td-tip-label {
-  color: #888;
+  color: #c8c8c8;
   margin-bottom: 0.25rem;
 }
 
@@ -437,9 +438,11 @@ body {
   .td-viz-center strong {
     font-size: 1.45rem;
   }
-  .td-viz-name,
+  .td-viz-name {
+    font-size: 0.8rem;
+  }
   .td-viz-eq {
-    font-size: 0.72rem;
+    font-size: 0.875rem;
   }
   .td-log {
     height: 210px;
@@ -455,8 +458,9 @@ body {
   border: 1px solid #1a2424;
   background: rgba(6, 10, 10, 0.92);
   color: #9fd;
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  color: #d7fff6;
   white-space: nowrap;
   overflow: hidden;
 }
@@ -480,8 +484,8 @@ body {
   flex-wrap: wrap;
   gap: 0.3rem 0.7rem;
   margin-top: 0.25rem;
-  color: #8a8a8a;
-  font-size: 0.6rem;
+  color: #c8c8c8;
+  font-size: 0.75rem;
   letter-spacing: 0.05em;
 }
 
@@ -499,7 +503,7 @@ body {
   grid-template-columns: 7px 4.2rem 1fr auto;
   gap: 0.35rem;
   align-items: center;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
 }
 
 .td-status-row i {
@@ -508,7 +512,7 @@ body {
   border-radius: 1px;
 }
 
-.td-status-time { color: #777; }
+.td-status-time { color: #c8c8c8; }
 
 .td-tiles {
   display: grid;
@@ -521,11 +525,11 @@ body {
   display: grid;
   grid-template-columns: 4.8rem 3.3rem 2.6rem 3.5rem 3.1rem 3.1rem;
   gap: 0.25rem;
-  font-size: 0.58rem;
+  font-size: 0.75rem;
 }
 
 .td-tape-head {
-  color: #667;
+  color: #c8d0d0;
   letter-spacing: 0.06em;
   position: sticky;
   top: 0;
@@ -551,8 +555,8 @@ body {
   gap: 0.35rem 0.8rem;
   padding: 0.35rem 0.15rem 0.1rem;
   border-top: 1px solid #182222;
-  color: #667;
-  font-size: 0.58rem;
+  color: #c8d0d0;
+  font-size: 0.75rem;
   letter-spacing: 0.07em;
 }
 
@@ -612,7 +616,7 @@ body {
   .td-ticker, .td-wallet, .td-price, .td-status, .td-alloc, .td-tiles, .td-tape, .td-funnel, .td-foot { margin: 0; }
   .td-ticker { grid-area: tick; }
   .td-wallet { grid-area: wallet; height: 100%; overflow: hidden; padding: 0.3rem 0.55rem; }
-  .td-wallet .td-total { font-size: 1.35rem; }
+  .td-wallet .td-total { font-size: 1.7rem; }
   .td-price, .td-status { height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; padding: 0.28rem 0.45rem; }
   .td-price { grid-area: price; }
   .td-status { grid-area: status; }
@@ -624,7 +628,7 @@ body {
     grid-template-columns: 1fr 1fr;
     gap: 0.08rem 0.45rem;
   }
-  .td-status-row { font-size: 0.55rem; line-height: 1.15; }
+  .td-status-row { font-size: 0.75rem; line-height: 1.25; }
   .td-alloc {
     grid-area: center;
     height: 100%;
@@ -639,7 +643,7 @@ body {
     min-height: 0;
     height: 100%;
     display: grid;
-    grid-template-columns: 132px minmax(0, 1fr);
+    grid-template-columns: 156px minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0.2rem;
   }
@@ -657,7 +661,7 @@ body {
     gap: 0.22rem;
   }
   .td-bot { flex: 1 1 0; min-height: 0; padding: 0.25rem 0.4rem 0.2rem; display: flex; flex-direction: column; }
-  .td-bot-eq { font-size: 0.9rem; margin: 0; }
+  .td-bot-eq { font-size: 1.15rem; margin: 0; }
   .td-bot-meta { display: none; }
   .td-bot-status { display: block; }
   .td-spark { height: 18px; flex: none; }
