@@ -1,7 +1,7 @@
 {
   "name": "Trading Terminal",
   "short_name": "Trading",
-  "description": "Paper trading dashboard for BTC, ETH, SOL, XRP",
+  "description": "Paper trading dashboard",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#050505",

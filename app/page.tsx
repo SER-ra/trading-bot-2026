@@ -1,25 +1,50 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { AreaChart, Area, ResponsiveContainer, LineChart, Line } from "recharts";
-import { supabase } from "../lib/supabase";
-
-interface EquityPoint { timestamp: string; equity: number; bot: string; }
-interface Trade { id: string; bot: string; side: string; status: string; quantity?: number; entry_price?: number; pnl?: number; }
-
-const STARTING_CAPITAL = 250;
-const BOTS = ["BTC", "ETH", "SOL", "XRP"];
-const COLORS: Record<string, string> = { BTC: "#d4a017", ETH: "#888", SOL: "#22c55e", XRP: "#a0a0a0" };
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  type BotProfile,
+  type EquityPoint,
+  type Trade,
+  botEquitySeries,
+  buildEquityCurve,
+  chartRows,
+  axisTicks,
+  curveDomain,
+  formatPnl,
+  isClosedTrade,
+  isOpenTrade,
+  isTestTrade,
+  latestEquity,
+  paddedDomain,
+  resolveBots,
+  sortTradesNewest,
+  tradeSummary,
+  winRate,
+} from "../lib/dashboard";
+import { fetchEquityHistory, fetchTrades } from "../lib/queries";
 
 export default function Dashboard() {
   const [equity, setEquity] = useState<EquityPoint[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const mounted = useMounted();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const requestRef = useRef(0);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
-    fetchAll();
-    const interval = setInterval(fetchAll, 15000);
+    const load = () => {
+      const requestId = ++requestRef.current;
+      Promise.all([fetchEquityHistory(), fetchTrades()])
+        .then(([nextEquity, nextTrades]) => {
+          if (requestId !== requestRef.current) return;
+          setEquity(nextEquity);
+          setTrades(nextTrades);
+        })
+        .catch((err) => console.error("dashboard fetch failed", err));
+    };
+    load();
+    const interval = setInterval(load, 15000);
     return () => clearInterval(interval);
   }, []);
 
@@ -28,24 +53,25 @@ export default function Dashboard() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    let w = canvas.width = canvas.offsetWidth;
-    let h = canvas.height = canvas.offsetHeight;
-    const particles: any[] = [];
+    let w = (canvas.width = canvas.offsetWidth);
+    let h = (canvas.height = canvas.offsetHeight);
+    const particles: { angle: number; radius: number; speed: number; size: number; color: string }[] = [];
     for (let i = 0; i < 70; i++) {
       particles.push({
         angle: Math.random() * Math.PI * 2,
         radius: 40 + Math.random() * 90,
         speed: 0.001 + Math.random() * 0.0012,
         size: Math.random() * 1 + 0.3,
-        color: Math.random() > 0.7 ? "rgba(34,197,94,0.3)" : "rgba(120,120,120,0.15)"
+        color: Math.random() > 0.7 ? "rgba(34,197,94,0.3)" : "rgba(120,120,120,0.15)",
       });
     }
-    let anim: number;
+    let anim = 0;
     function draw() {
       ctx!.fillStyle = "rgba(5,5,5,0.25)";
       ctx!.fillRect(0, 0, w, h);
-      const cx = w / 2, cy = h / 2;
-      particles.forEach(p => {
+      const cx = w / 2;
+      const cy = h / 2;
+      particles.forEach((p) => {
         p.angle += p.speed;
         const x = cx + Math.cos(p.angle) * p.radius;
         const y = cy + Math.sin(p.angle) * p.radius * 0.3;
@@ -57,159 +83,308 @@ export default function Dashboard() {
       anim = requestAnimationFrame(draw);
     }
     draw();
-    const onResize = () => { w = canvas.width = canvas.offsetWidth; h = canvas.height = canvas.offsetHeight; };
+    const onResize = () => {
+      w = canvas.width = canvas.offsetWidth;
+      h = canvas.height = canvas.offsetHeight;
+    };
     window.addEventListener("resize", onResize);
-    return () => { cancelAnimationFrame(anim); window.removeEventListener("resize", onResize); };
+    return () => {
+      cancelAnimationFrame(anim);
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
-  async function fetchAll() {
-    const [eq, tr] = await Promise.all([
-      supabase.from("equity_history").select("*").gte("timestamp", "2026-10-27T15:00:00").order("timestamp", { ascending: true }).limit(500),
-      supabase.from("trades").select("*").order("opened_at", { ascending: false }).limit(300)
-    ]);
-    if (eq.data) setEquity(eq.data);
-    if (tr.data) setTrades(tr.data);
-  }
+  const liveTrades = useMemo(() => trades.filter((trade) => !isTestTrade(trade)), [trades]);
+  const bots = useMemo(() => resolveBots(equity, liveTrades), [equity, liveTrades]);
+  const curve = useMemo(() => buildEquityCurve(equity, bots), [equity, bots]);
+  const chartData = useMemo(() => chartRows(curve), [curve]);
+  const chartBots = useMemo(
+    () => bots.filter((bot) => equity.some((point) => point.bot === bot.id)),
+    [bots, equity]
+  );
+  const yDomain = useMemo(() => curveDomain(curve, chartBots.map((bot) => bot.id)), [curve, chartBots]);
 
   const latest: Record<string, number> = {};
-  BOTS.forEach(b => {
-    const last = [...equity].reverse().find(e => e.bot === b);
-    latest[b] = last ? Number(last.equity) : STARTING_CAPITAL;
+  bots.forEach((bot) => {
+    latest[bot.id] = latestEquity(equity, bot.id, bot.capital);
   });
-
-  const totalEquity = Object.values(latest).reduce((a, b) => a + b, 0);
-  const totalStart = STARTING_CAPITAL * BOTS.length;
+  const totalEquity = bots.reduce((sum, bot) => sum + latest[bot.id], 0);
+  const totalStart = bots.reduce((sum, bot) => sum + bot.capital, 0);
   const totalPnl = totalEquity - totalStart;
   const pnlColor = totalPnl >= 0 ? "#22c55e" : "#ef4444";
 
-  const closedTrades = trades.filter(t => t.status === "closed");
-  const wins = closedTrades.filter(t => (t.pnl || 0) > 0).length;
-  const winRate = closedTrades.length ? (wins / closedTrades.length) * 100 : 0;
+  const closedTrades = liveTrades.filter(isClosedTrade);
+  const rate = winRate(liveTrades);
 
-  // Equity curve for total
-  const equityCurve = equity.reduce((acc: any[], p) => {
-    const time = new Date(p.timestamp).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
-    let entry = acc.find(e => e.time === time);
-    if (!entry) { entry = { time }; acc.push(entry); }
-    entry[p.bot] = Number(p.equity);
-    return acc;
-  }, []);
-
-  // Drawdown calculation (simple peak-to-current)
   let peak = totalStart;
-  let maxDD = 0;
-  equity.forEach(p => {
-    const eq = Number(p.equity);
-    if (eq > peak) peak = eq;
-    const dd = (peak - eq) / peak;
-    if (dd > maxDD) maxDD = dd;
+  equity.forEach((point) => {
+    const value = Number(point.equity);
+    if (value > peak) peak = value;
   });
   const currentDD = peak > 0 ? ((peak - totalEquity) / peak) * 100 : 0;
 
-  const getBotChart = (bot: string) => equity.filter(e => e.bot === bot).map(e => ({ equity: Number(e.equity) }));
+  const log = sortTradesNewest(liveTrades);
+  const singlePointBots = new Set(
+    chartBots
+      .filter((bot) => curve.filter((row) => row.values[bot.id] != null).length < 2)
+      .map((bot) => bot.id)
+  );
 
   return (
-    <div style={{ position: "relative", minHeight: "100vh", background: "#050505", color: "#d4d4d4", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden" }}>
-      <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-      <link rel="manifest" href="/manifest.json" />
-      <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 0 }} />
+    <div className="td-root">
+      <canvas ref={canvasRef} className="td-canvas" />
 
-      <div style={{ position: "relative", zIndex: 1, padding: "0.8rem", maxWidth: 1400, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.9rem" }}>
-          <div style={{ letterSpacing: "0.12em", fontSize: "0.7rem", color: "#777" }}>TRADING</div>
-          <div style={{ fontSize: "0.65rem", color: "#22c55e" }}>● LIVE</div>
+      <div className="td-shell">
+        <div className="td-top">
+          <div className="td-brand">TRADING</div>
+          <div className="td-live">● LIVE</div>
         </div>
 
-        {/* Main summary */}
-        <div style={{ background: "rgba(10,10,10,0.85)", border: "1px solid #1c1c1c", borderRadius: 14, padding: "1rem", marginBottom: "0.75rem", textAlign: "center" }}>
-          <div style={{ fontSize: "0.6rem", color: "#666" }}>TOTAL EQUITY</div>
-          <div style={{ fontSize: "1.9rem", fontWeight: 600 }}>${totalEquity.toFixed(2)}</div>
-          <div style={{ fontSize: "1.05rem", fontWeight: 600, color: pnlColor }}>
-            DIA {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}
+        <div className="td-card td-summary">
+          <div className="td-label">TOTAL EQUITY</div>
+          <div className="td-total">{`$${totalEquity.toFixed(2)}`}</div>
+          <div className="td-pnl" style={{ color: pnlColor }}>
+            {`DIA ${formatPnl(totalPnl)}`}
           </div>
         </div>
 
-        {/* Metrics row */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
-          <div style={metricCard}>
-            <div style={metricLabel}>WIN RATE</div>
-            <div style={{ fontSize: "1.1rem", fontWeight: 600, color: winRate >= 50 ? "#22c55e" : "#ef4444" }}>{winRate.toFixed(0)}%</div>
+        <div className="td-metrics">
+          <div className="td-card td-metric">
+            <div className="td-label">WIN RATE</div>
+            <div className="td-metric-value" style={{ color: rate >= 50 ? "#22c55e" : "#ef4444" }}>
+              {`${rate.toFixed(0)}%`}
+            </div>
           </div>
-          <div style={metricCard}>
-            <div style={metricLabel}>DRAWDOWN</div>
-            <div style={{ fontSize: "1.1rem", fontWeight: 600, color: currentDD > 5 ? "#ef4444" : "#ccc" }}>{currentDD.toFixed(1)}%</div>
+          <div className="td-card td-metric">
+            <div className="td-label">DRAWDOWN</div>
+            <div className="td-metric-value" style={{ color: currentDD > 5 ? "#ef4444" : "#ccc" }}>
+              {`${currentDD.toFixed(1)}%`}
+            </div>
           </div>
-          <div style={metricCard}>
-            <div style={metricLabel}>TRADES</div>
-            <div style={{ fontSize: "1.1rem", fontWeight: 600 }}>{closedTrades.length}</div>
-          </div>
-        </div>
-
-        {/* Total equity chart */}
-        <div style={{ background: "rgba(10,10,10,0.75)", border: "1px solid #1c1c1c", borderRadius: 12, padding: "0.8rem", marginBottom: "0.75rem" }}>
-          <div style={{ fontSize: "0.6rem", color: "#666", marginBottom: "0.4rem" }}>EQUITY TOTAL</div>
-          <div style={{ height: 90 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={equityCurve}>
-                <defs>
-                  <linearGradient id="totalG" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="BTC" stroke="#d4a017" fill="none" strokeWidth={1.2} dot={false} />
-                <Area type="monotone" dataKey="ETH" stroke="#888" fill="none" strokeWidth={1.2} dot={false} />
-                <Area type="monotone" dataKey="SOL" stroke="#22c55e" fill="none" strokeWidth={1.2} dot={false} />
-                <Area type="monotone" dataKey="XRP" stroke="#aaa" fill="none" strokeWidth={1.2} dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="td-card td-metric">
+            <div className="td-label">TRADES</div>
+            <div className="td-metric-value">{closedTrades.length}</div>
           </div>
         </div>
 
-        {/* Bot cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: "0.6rem" }}>
-          {BOTS.map(bot => {
-            const data = getBotChart(bot);
-            const eq = latest[bot];
-            const pnl = eq - STARTING_CAPITAL;
-            const color = COLORS[bot];
-            const botTrades = closedTrades.filter(t => t.bot === bot);
-            const botWins = botTrades.filter(t => (t.pnl || 0) > 0).length;
-            const botWR = botTrades.length ? (botWins / botTrades.length) * 100 : 0;
-            return (
-              <div key={bot} style={{ background: "rgba(10,10,10,0.75)", border: "1px solid #1c1c1c", borderRadius: 12, padding: "0.85rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontWeight: 600 }}>{bot}</span>
-                  <span style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444", fontSize: "0.8rem" }}>{pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}</span>
-                </div>
-                <div style={{ fontSize: "1.15rem", fontWeight: 600, margin: "0.2rem 0" }}>${eq.toFixed(2)}</div>
-                <div style={{ fontSize: "0.6rem", color: "#666", marginBottom: "0.3rem" }}>WR {botWR.toFixed(0)}% · {botTrades.length} trades</div>
-                <div style={{ height: 45 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data.length ? data : [{ equity: STARTING_CAPITAL }]}>
-                      <Area type="monotone" dataKey="equity" stroke={color} fill={color} fillOpacity={0.15} strokeWidth={1.5} dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+        <div className="td-card td-chart-card">
+          <div className="td-chart-head">
+            <div className="td-label">EQUITY TOTAL</div>
+            {curve.length > 0 && (
+              <div className="td-range">
+                {curve[0].label} — {curve[curve.length - 1].label}
               </div>
-            );
-          })}
+            )}
+          </div>
+          <div className="td-chart">
+            {mounted && chartData.length > 0 && (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="#171717" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  tick={<TimeTick />}
+                  axisLine={false}
+                  tickLine={false}
+                  minTickGap={80}
+                  interval="preserveStartEnd"
+                  height={28}
+                />
+                <YAxis
+                  domain={yDomain}
+                  ticks={axisTicks(yDomain)}
+                  width={68}
+                  tickFormatter={(value: number) => `$${Number(value).toFixed(2)}`}
+                  tick={{ fill: "#737373", fontSize: 10, fontFamily: "JetBrains Mono, ui-monospace, monospace" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  content={<EquityTooltip />}
+                  cursor={{ stroke: "#333", strokeWidth: 1 }}
+                />
+                {chartBots.map((bot) => (
+                  <Line
+                    key={bot.id}
+                    type="monotone"
+                    dataKey={bot.id}
+                    name={bot.label}
+                    stroke={bot.color}
+                    strokeWidth={1.8}
+                    dot={singlePointBots.has(bot.id) ? <SeriesDot color={bot.color} /> : false}
+                    activeDot={{ r: 3, strokeWidth: 0, fill: bot.color }}
+                    connectNulls
+                    isAnimationActive={false}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+            )}
+          </div>
+          <div className="td-legend">
+            {chartBots.map((bot) => (
+              <span key={bot.id} className="td-legend-item">
+                <i style={{ background: bot.color }} />
+                {bot.label}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="td-bots">
+          {bots.map((bot) => (
+            <BotCard key={bot.id} bot={bot} equity={latest[bot.id]} points={equity} trades={liveTrades} />
+          ))}
+        </div>
+
+        <div className="td-card td-log-card">
+          <div className="td-label">TRADE LOG</div>
+          {log.length === 0 ? (
+            <div className="td-empty">No trades</div>
+          ) : (
+            <div className="td-log">
+              {log.map((trade) => {
+                const bot = bots.find((item) => item.id === trade.bot);
+                const pnl = Number(trade.pnl);
+                const showPnl = isClosedTrade(trade) && Number.isFinite(pnl);
+                return (
+                  <div key={trade.id} className="td-trade">
+                    <div className="td-trade-top">
+                      <span className="td-trade-bot" style={{ color: bot?.color ?? "#d4d4d4" }}>
+                        {bot?.label ?? trade.bot}
+                      </span>
+                      <span className="td-trade-symbol">{trade.symbol || "—"}</span>
+                      {showPnl && (
+                        <span style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444" }}>{formatPnl(pnl)}</span>
+                      )}
+                    </div>
+                    <div className="td-trade-sub">
+                      {(trade.side || "—").toString().toUpperCase()} · {(trade.status || "—").toString().toUpperCase()}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-const metricCard: React.CSSProperties = {
-  background: "rgba(10,10,10,0.75)",
-  border: "1px solid #1c1c1c",
-  borderRadius: 10,
-  padding: "0.7rem",
-  textAlign: "center"
-};
-const metricLabel: React.CSSProperties = {
-  fontSize: "0.55rem",
-  color: "#666",
-  letterSpacing: "0.08em",
-  marginBottom: "0.2rem"
-};
+function BotCard({
+  bot,
+  equity,
+  points,
+  trades,
+}: {
+  bot: BotProfile;
+  equity: number;
+  points: EquityPoint[];
+  trades: Trade[];
+}) {
+  const mounted = useMounted();
+  const series = botEquitySeries(points, bot.id, bot.capital);
+  const data = series.map((value, index) => ({ i: index, equity: value }));
+  const domain = paddedDomain(series, 0.35);
+  const pnl = equity - bot.capital;
+  const botTrades = trades.filter((trade) => trade.bot === bot.id);
+  const closed = botTrades.filter(isClosedTrade);
+  const open = botTrades.filter(isOpenTrade);
+  const rate = closed.length ? (closed.filter((trade) => Number(trade.pnl) > 0).length / closed.length) * 100 : 0;
+
+  return (
+    <div className="td-card td-bot" style={{ borderTop: `2px solid ${bot.color}` }} title={bot.id}>
+      <div className="td-bot-head">
+        <span className="td-bot-name">{bot.label}</span>
+        <span style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444" }}>{formatPnl(pnl)}</span>
+      </div>
+      <div className="td-bot-eq">{`$${equity.toFixed(2)}`}</div>
+      <div className="td-bot-meta">{tradeSummary(closed.length, open.length, rate)}</div>
+      <div className="td-spark">
+        {mounted && (
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 8, right: 2, left: 2, bottom: 8 }}>
+            <XAxis hide dataKey="i" />
+            <YAxis hide width={0} domain={domain} />
+            <Line
+              type="monotone"
+              dataKey="equity"
+              stroke={bot.color}
+              strokeWidth={1.75}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function useMounted() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  return mounted;
+}
+
+function TimeTick({
+  x = 0,
+  y = 0,
+  payload,
+  index = 0,
+  visibleTicksCount = 0,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value?: string };
+  index?: number;
+  visibleTicksCount?: number;
+}) {
+  const last = visibleTicksCount > 0 && index === visibleTicksCount - 1;
+  const anchor = index === 0 ? "start" : last ? "end" : "middle";
+  return (
+    <text
+      x={x}
+      y={y}
+      dy={14}
+      textAnchor={anchor}
+      fill="#737373"
+      fontSize={10}
+      fontFamily="JetBrains Mono, ui-monospace, monospace"
+    >
+      {payload?.value}
+    </text>
+  );
+}
+
+function SeriesDot(props: { cx?: number; cy?: number; value?: number | null; color: string }) {
+  const { cx, cy, value, color } = props;
+  if (value == null || cx == null || cy == null || Number.isNaN(cx) || Number.isNaN(cy)) return null;
+  return <circle cx={cx} cy={cy} r={3.5} fill={color} />;
+}
+
+function EquityTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ name?: string; value?: number | string | null; color?: string }>;
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const rows = payload.filter((item) => item.value != null && Number.isFinite(Number(item.value)));
+  return (
+    <div className="td-tip">
+      <div className="td-tip-label">{label}</div>
+      {rows.map((item) => (
+        <div key={String(item.name)} className="td-tip-row">
+          <span style={{ color: item.color }}>{item.name}</span>
+          <span>{`$${Number(item.value).toFixed(2)}`}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
