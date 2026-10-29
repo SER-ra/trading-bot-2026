@@ -136,6 +136,8 @@ export default function Dashboard() {
       <canvas ref={canvasRef} className="td-canvas" />
 
       <div className="td-shell">
+        <PanelFeeds />
+        <div className="td-kpis">
         <div className="td-top">
           <div className="td-brand">TRADING</div>
           <div className="td-live">● LIVE</div>
@@ -166,6 +168,7 @@ export default function Dashboard() {
             <div className="td-label">TRADES</div>
             <div className="td-metric-value">{closedTrades.length}</div>
           </div>
+        </div>
         </div>
 
         <AllocationDonut bots={bots} latest={latest} total={totalEquity} />
@@ -242,32 +245,11 @@ export default function Dashboard() {
 
         <div className="td-card td-log-card">
           <div className="td-log">
-            <div className="td-log-sticky">TRADE LOG</div>
-            {log.length === 0 ? (
-              <div className="td-empty">No trades</div>
-            ) : (
-              log.map((trade) => {
-                const bot = bots.find((item) => item.id === trade.bot);
-                const pnl = Number(trade.pnl);
-                const showPnl = isClosedTrade(trade) && Number.isFinite(pnl);
-                return (
-                  <div key={trade.id} className="td-trade">
-                    <div className="td-trade-top">
-                      <span className="td-trade-bot" style={{ color: bot?.color ?? "#d4d4d4" }}>
-                        {bot?.label ?? trade.bot}
-                      </span>
-                      <span className="td-trade-symbol">{trade.symbol || "—"}</span>
-                      {showPnl && (
-                        <span style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444" }}>{formatPnl(pnl)}</span>
-                      )}
-                    </div>
-                    <div className="td-trade-sub">
-                      {(trade.side || "—").toString().toUpperCase()} · {(trade.status || "—").toString().toUpperCase()}
-                    </div>
-                  </div>
-                );
-              })
-            )}
+            <div className="td-log-sticky">ORDERS</div>
+            <div className="td-log-section">OPEN</div>
+            <OrderRows trades={log.filter(isOpenTrade)} bots={bots} />
+            <div className="td-log-section">FILLS</div>
+            <OrderRows trades={log.filter(isClosedTrade)} bots={bots} empty="No fills" />
           </div>
         </div>
       </div>
@@ -330,12 +312,13 @@ function BotCard({
   const rate = closed.length ? (closed.filter((trade) => Number(trade.pnl) > 0).length / closed.length) * 100 : 0;
 
   return (
-    <div className="td-card td-bot" style={{ borderTop: `2px solid ${bot.color}` }} title={bot.id}>
+    <div className="td-card td-bot" data-bot={bot.id} style={{ borderTop: `2px solid ${bot.color}` }} title={bot.id}>
       <div className="td-bot-head">
         <span className="td-bot-name">{bot.label}</span>
         <span style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444" }}>{formatPnl(pnl)}</span>
       </div>
       <div className="td-bot-eq">{`$${equity.toFixed(2)}`}</div>
+      <div className="td-bot-status">{open.length ? `${open.length} OPEN` : "FLAT"}</div>
       <div className="td-bot-meta">{tradeSummary(closed.length, open.length, rate)}</div>
       <div className="td-spark">
         {mounted && (
@@ -357,6 +340,96 @@ function BotCard({
       </div>
     </div>
   );
+}
+
+function OrderRows({ trades, bots, empty = "No open orders" }: { trades: Trade[]; bots: BotProfile[]; empty?: string }) {
+  if (!trades.length) return <div className="td-empty">{empty}</div>;
+  return (
+    <>
+      {trades.map((trade) => {
+        const bot = bots.find((item) => item.id === trade.bot);
+        const pnl = Number(trade.pnl);
+        const showPnl = isClosedTrade(trade) && Number.isFinite(pnl);
+        const price = trade.entry_price != null ? `$${Number(trade.entry_price).toFixed(2)}` : "";
+        return (
+          <div key={trade.id} className="td-trade">
+            <div className="td-trade-top">
+              <span className="td-trade-bot" style={{ color: bot?.color ?? "#d4d4d4" }}>
+                {bot?.label ?? trade.bot}
+              </span>
+              <span className="td-trade-symbol">{trade.symbol || "—"}</span>
+              {showPnl && <span style={{ color: pnl >= 0 ? "#22c55e" : "#ef4444" }}>{formatPnl(pnl)}</span>}
+            </div>
+            <div className="td-trade-sub">
+              {(trade.side || "—").toString().toUpperCase()}
+              {price ? ` · ${price}` : ""}
+              {` · ${(trade.status || "—").toString().toUpperCase()}`}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function PanelFeeds() {
+  const ref = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    const svg = ref.current;
+    const shell = svg?.parentElement;
+    if (!svg || !shell) return;
+    const draw = () => {
+      const wide = window.matchMedia("(min-width: 1280px)").matches;
+      svg.replaceChildren();
+      if (!wide) return;
+      const shellBox = shell.getBoundingClientRect();
+      const stage = shell.querySelector(".td-viz-stage");
+      if (!stage) return;
+      const stageBox = stage.getBoundingClientRect();
+      const cards = [...shell.querySelectorAll<HTMLElement>(".td-bot")];
+      const book = shell.querySelector(".td-log-card");
+      if (!book) return;
+      const bookBox = book.getBoundingClientRect();
+      cards.forEach((card) => {
+        const box = card.getBoundingClientRect();
+        const color = getComputedStyle(card).borderTopColor || "#888";
+        const y = Math.min(stageBox.bottom - 10, Math.max(stageBox.top + 10, box.top + box.height / 2)) - shellBox.top;
+        const y1 = box.top + box.height / 2 - shellBox.top;
+        const x1 = box.right - shellBox.left;
+        const x2 = stageBox.left - shellBox.left + 4;
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const mid = (x1 + x2) / 2;
+        path.setAttribute("d", `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y}, ${x2} ${y}`);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", color);
+        path.setAttribute("stroke-width", "1.1");
+        path.setAttribute("opacity", "0.75");
+        svg.appendChild(path);
+        const yb = Math.min(bookBox.bottom - 16, Math.max(bookBox.top + 16, box.top + box.height / 2)) - shellBox.top;
+        const xb1 = bookBox.left - shellBox.left;
+        const xb2 = stageBox.right - shellBox.left - 4;
+        const pathR = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const midR = (xb1 + xb2) / 2;
+        pathR.setAttribute("d", `M ${xb1} ${yb} C ${midR} ${yb}, ${midR} ${y}, ${xb2} ${y}`);
+        pathR.setAttribute("fill", "none");
+        pathR.setAttribute("stroke", color);
+        pathR.setAttribute("stroke-width", "1.1");
+        pathR.setAttribute("opacity", "0.55");
+        svg.appendChild(pathR);
+      });
+    };
+    draw();
+    const observer = new ResizeObserver(draw);
+    observer.observe(shell);
+    window.addEventListener("resize", draw);
+    const timer = window.setInterval(draw, 1000);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", draw);
+      window.clearInterval(timer);
+    };
+  }, []);
+  return <svg ref={ref} className="td-feeds" aria-hidden />;
 }
 
 function useMounted() {
