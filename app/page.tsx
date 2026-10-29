@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import type { TorusSlice } from "../components/ParticleTorus";
 import {
   type BotProfile,
   type EquityPoint,
@@ -167,6 +168,8 @@ export default function Dashboard() {
           </div>
         </div>
 
+        <AllocationDonut bots={bots} latest={latest} total={totalEquity} />
+
         <div className="td-card td-chart-card">
           <div className="td-chart-head">
             <div className="td-label">EQUITY TOTAL</div>
@@ -238,12 +241,12 @@ export default function Dashboard() {
         </div>
 
         <div className="td-card td-log-card">
-          <div className="td-label">TRADE LOG</div>
-          {log.length === 0 ? (
-            <div className="td-empty">No trades</div>
-          ) : (
-            <div className="td-log">
-              {log.map((trade) => {
+          <div className="td-log">
+            <div className="td-log-sticky">TRADE LOG</div>
+            {log.length === 0 ? (
+              <div className="td-empty">No trades</div>
+            ) : (
+              log.map((trade) => {
                 const bot = bots.find((item) => item.id === trade.bot);
                 const pnl = Number(trade.pnl);
                 const showPnl = isClosedTrade(trade) && Number.isFinite(pnl);
@@ -263,11 +266,44 @@ export default function Dashboard() {
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          )}
+              })
+            )}
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AllocationDonut({
+  bots,
+  latest,
+  total,
+}: {
+  bots: BotProfile[];
+  latest: Record<string, number>;
+  total: number;
+}) {
+  const slices: TorusSlice[] = bots.map((bot) => {
+    const equity = latest[bot.id] ?? bot.capital;
+    const share = total > 0 ? (equity / total) * 100 : 0;
+    return { id: bot.id, label: bot.label, color: bot.color, equity, pnl: equity - bot.capital, share };
+  });
+  const [Torus, setTorus] = useState<typeof import("../components/ParticleTorus").default | null>(null);
+  useEffect(() => {
+    let live = true;
+    import("../components/ParticleTorus").then((mod) => {
+      if (live) setTorus(() => mod.default);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  return (
+    <div className="td-card td-alloc">
+      <div className="td-label">ALLOCATION</div>
+      {Torus ? <Torus slices={slices} total={total} /> : <div className="td-viz" />}
     </div>
   );
 }

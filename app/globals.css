@@ -2,6 +2,10 @@ html,
 body {
   margin: 0;
   background: #050505;
+  height: auto;
+  min-height: 100%;
+  overflow-x: clip;
+  overflow-y: auto;
 }
 
 .td-root,
@@ -15,7 +19,7 @@ body {
   background: #050505;
   color: #d4d4d4;
   font-family: "JetBrains Mono", ui-monospace, monospace;
-  overflow-x: hidden;
+  overflow: visible;
 }
 
 .td-canvas {
@@ -188,15 +192,126 @@ body {
   height: 56px;
 }
 
+.td-alloc {
+  padding: 0.75rem 0.55rem 0.7rem;
+  margin-bottom: 0.75rem;
+  overflow: visible;
+}
+
+.td-viz {
+  position: relative;
+  height: 580px;
+  width: 100%;
+  overflow: visible;
+}
+
+.td-viz-gl,
+.td-viz-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.td-viz-lines {
+  z-index: 2;
+}
+
+.td-viz-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  padding: 1.1rem 1.3rem;
+  background: radial-gradient(circle, rgba(5, 5, 5, 0.92) 0%, rgba(5, 5, 5, 0.72) 46%, rgba(5, 5, 5, 0) 72%);
+}
+
+.td-viz-center strong {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-shadow: 0 0 12px #000;
+}
+
+.td-viz-label {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 50%;
+  min-width: 4.2rem;
+  padding: 0.26rem 0.38rem 0.22rem;
+  background: rgba(8, 8, 8, 0.84);
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  line-height: 1.2;
+  pointer-events: none;
+  opacity: 0;
+  text-align: center;
+}
+
+.td-viz-name {
+  display: block;
+  font-weight: 600;
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
+}
+
+.td-viz-eq {
+  display: block;
+  font-size: 0.66rem;
+  color: #e8e8e8;
+}
+
+.td-viz-pnl {
+  display: block;
+  font-size: 0.6rem;
+}
+
 .td-log-card {
   margin-top: 0.75rem;
-  padding: 0.85rem 0.85rem 0.4rem;
+  padding: 0;
 }
 
 .td-log {
-  max-height: 320px;
-  overflow: auto;
-  margin-top: 0.35rem;
+  height: 196px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: 0 0.45rem 0.45rem 0.85rem;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a transparent;
+}
+
+.td-log::-webkit-scrollbar {
+  width: 8px;
+}
+
+.td-log::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.td-log::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 8px;
+}
+
+.td-log-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 -0.45rem 0 -0.85rem;
+  padding: 0.75rem 0.85rem 0.4rem;
+  background: rgba(12, 12, 12, 0.98);
+  font-size: 0.6rem;
+  color: #666;
+  letter-spacing: 0.08em;
 }
 
 .td-empty {
@@ -286,8 +401,23 @@ body {
   .td-metric-value {
     font-size: 1.25rem;
   }
+  .td-alloc {
+    padding: 0.85rem 0.9rem 0.8rem;
+    overflow: visible;
+  }
+  .td-viz {
+    height: 560px;
+    overflow: visible;
+  }
+  .td-viz-center strong {
+    font-size: 1.45rem;
+  }
+  .td-viz-name,
+  .td-viz-eq {
+    font-size: 0.72rem;
+  }
   .td-log {
-    max-height: 420px;
+    height: 210px;
   }
 }
 

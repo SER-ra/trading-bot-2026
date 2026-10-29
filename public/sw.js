@@ -1,4 +1,4 @@
-const CACHE = "trading-v2";
+const CACHE = "trading-v3";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
