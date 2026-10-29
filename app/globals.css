@@ -195,12 +195,14 @@ body {
 .td-alloc {
   padding: 0.75rem 0.55rem 0.7rem;
   margin-bottom: 0.75rem;
+  overflow: visible;
 }
 
 .td-viz {
   position: relative;
-  height: 480px;
+  height: 580px;
   width: 100%;
+  overflow: visible;
 }
 
 .td-viz-gl,
@@ -401,9 +403,11 @@ body {
   }
   .td-alloc {
     padding: 0.85rem 0.9rem 0.8rem;
+    overflow: visible;
   }
   .td-viz {
-    height: 520px;
+    height: 560px;
+    overflow: visible;
   }
   .td-viz-center strong {
     font-size: 1.45rem;

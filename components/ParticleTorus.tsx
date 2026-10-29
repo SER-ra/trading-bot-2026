@@ -127,6 +127,31 @@ function perspective(fov: number, aspect: number, near: number, far: number): Fl
   return m;
 }
 
+const TILT = 0.78;
+const WORLD_RIM = 1.96;
+
+function frameCamera(aspect: number): { cameraZ: number; fov: number } {
+  if (aspect < 0.85) return { cameraZ: 6.5, fov: 0.96 };
+  if (aspect < 1.15) return { cameraZ: 5.9, fov: 0.84 };
+  if (aspect < 1.7) return { cameraZ: 5.45, fov: 0.74 };
+  return { cameraZ: 5.15, fov: 0.66 };
+}
+
+function scaleForRim(cssW: number, cssH: number, targetPx: number, cameraZ: number, fov: number): number {
+  let lo = 0.15;
+  let hi = 2.4;
+  for (let i = 0; i < 18; i++) {
+    const mid = (lo + hi) / 2;
+    const mvp = buildMvp(0, TILT, cssW / cssH, cameraZ, fov, mid);
+    const origin = project(mvp, 0, 0, 0, cssW, cssH);
+    const rim = project(mvp, WORLD_RIM, 0, 0, cssW, cssH);
+    const radius = origin && rim ? Math.hypot(rim.x - origin.x, rim.y - origin.y) : 0;
+    if (radius > targetPx) hi = mid;
+    else lo = mid;
+  }
+  return lo;
+}
+
 function buildMvp(yaw: number, tilt: number, aspect: number, cameraZ: number, fov: number, scale: number): Float32Array {
   const model = multiply(multiply(rotY(yaw), rotX(tilt)), scaleMat(scale));
   const view = identity();
@@ -361,11 +386,18 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
       if (ends.length !== slicesRef.current.length) measure();
       const narrow = cssW < 720;
       if (!reducedRef.current) yawRef.current += narrow ? 0.0042 : 0.0034;
-      const tilt = 0.78;
-      const cameraZ = narrow ? 5.7 : 4.85;
-      const fov = narrow ? 0.86 : 0.72;
-      const scale = narrow ? 1.02 : 1.16;
-      const mvp = buildMvp(yawRef.current, tilt, cssW / cssH, cameraZ, fov, scale);
+      const labelsNow = [...wrap.querySelectorAll<HTMLElement>(".td-viz-label")];
+      const labelW = Math.max(72, ...labelsNow.map((label) => label.offsetWidth));
+      const labelH = Math.max(46, ...labelsNow.map((label) => label.offsetHeight));
+      const gap = narrow ? 16 : 22;
+      const pad = 10;
+      const maxRadius = Math.min(
+        cssW / 2 - pad - labelW / 2 - gap,
+        cssH / 2 - pad - labelH / 2 - gap
+      );
+      const { cameraZ, fov } = frameCamera(cssW / cssH);
+      const scale = scaleForRim(cssW, cssH, Math.max(42, maxRadius - 12), cameraZ, fov);
+      const mvp = buildMvp(yawRef.current, TILT, cssW / cssH, cameraZ, fov, scale);
       gl.useProgram(program);
       gl.uniformMatrix4fv(mvpLoc, false, mvp);
       gl.uniform1f(pointLoc, narrow ? 92 : 118);
@@ -386,7 +418,7 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, cssW, cssH);
       const current = slicesRef.current;
-      const labels = [...wrap.querySelectorAll<HTMLElement>(".td-viz-label")];
+      const labels = labelsNow;
       const origin = project(mvp, 0, 0, 0, cssW, cssH) || { x: cssW / 2, y: cssH / 2 };
       labels.forEach((label, index) => {
         const samples = cloud.anchors[index];
@@ -399,17 +431,17 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
         const dx = mid.x - origin.x;
         const dy = mid.y - origin.y;
         const radial = Math.hypot(dx, dy) || 1;
-        const extra = narrow ? 58 : 78;
-        const padX = narrow ? 48 : 72;
-        const padY = narrow ? 22 : 26;
-        const lx = Math.min(cssW - padX, Math.max(padX, origin.x + (dx / radial) * (radial + extra)));
-        const ly = Math.min(cssH - padY, Math.max(padY, origin.y + (dy / radial) * (radial + extra)));
+        const halfW = label.offsetWidth / 2;
+        const halfH = label.offsetHeight / 2;
+        const orbit = Math.max(42, maxRadius - 12) + gap;
+        const lx = Math.min(cssW - halfW - 6, Math.max(halfW + 6, origin.x + (dx / radial) * orbit));
+        const ly = Math.min(cssH - halfH - 6, Math.max(halfH + 6, origin.y + (dy / radial) * orbit));
         label.style.left = `${lx}px`;
         label.style.top = `${ly}px`;
         label.style.right = "auto";
         label.style.transform = "translate(-50%, -50%)";
         label.style.opacity = "1";
-        const pull = narrow ? 30 : 36;
+        const pull = Math.min(halfW, halfH) + 4;
         const ldx = lx - mid.x;
         const ldy = ly - mid.y;
         const llen = Math.hypot(ldx, ldy) || 1;
