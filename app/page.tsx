@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { TorusSlice } from "../components/ParticleTorus";
 import {
   type BotProfile,
@@ -133,21 +133,24 @@ export default function Dashboard() {
   const avgWin = winPnls.length ? winPnls.reduce((sum, value) => sum + value, 0) / winPnls.length : null;
   const avgLoss = lossPnls.length ? lossPnls.reduce((sum, value) => sum + value, 0) / lossPnls.length : null;
   const totalSeries = curve.map((row) => {
-    let sum = 0;
-    let count = 0;
+    let pnl = 0;
     for (const bot of bots) {
       const value = row.values[bot.id];
-      if (value != null) {
-        sum += value;
-        count += 1;
-      }
+      if (value == null) continue;
+      pnl += value - bot.capital;
     }
-    return { label: row.label, total: count ? sum : null };
+    return {
+      label: row.label,
+      total: pnl,
+      gain: pnl > 0 ? pnl : 0,
+      loss: pnl < 0 ? pnl : 0,
+    };
   });
   const totalDomain = paddedDomain(
-    totalSeries.map((row) => row.total).filter((value): value is number => value != null),
-    0.12
+    [...totalSeries.map((row) => row.total), 0],
+    0.18
   );
+  const pnlColorLine = (totalSeries.at(-1)?.total ?? 0) >= 0 ? "#3dff9a" : "#ff5d6c";
   const latestStamp = equity.reduce((best, point) => {
     const time = Date.parse(point.timestamp);
     return time > best ? time : best;
@@ -186,12 +189,16 @@ export default function Dashboard() {
         </div>
 
         <div className="td-card td-price">
-          <div className="td-label">EQUITY</div>
+          <div className="td-label">P&L TOTAL</div>
           <div className="td-mini">
             {mounted && totalSeries.length > 0 && (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={totalSeries} margin={{ top: 6, right: 4, left: 0, bottom: 0 }}>
-                  <Area type="monotone" dataKey="total" stroke="#2ee6a6" fill="#2ee6a6" fillOpacity={0.18} strokeWidth={1.4} dot={false} isAnimationActive={false} />
+                  <YAxis hide domain={totalDomain} />
+                  <ReferenceLine y={0} stroke="#2a2a2a" />
+                  <Area type="monotone" dataKey="gain" stroke="none" fill="#3dff9a" fillOpacity={0.28} baseValue={0} dot={false} isAnimationActive={false} />
+                  <Area type="monotone" dataKey="loss" stroke="none" fill="#ff5d6c" fillOpacity={0.28} baseValue={0} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="total" stroke={pnlColorLine} strokeWidth={1.4} dot={false} isAnimationActive={false} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -251,24 +258,21 @@ export default function Dashboard() {
 
         <div className="td-card td-funnel">
           <div className="td-chart-head">
-            <div className="td-label">EQUITY</div>
+            <div className="td-label">P&L TOTAL</div>
             {curve.length > 0 && <div className="td-range">{curve[0].label} — {curve[curve.length - 1].label}</div>}
           </div>
           <div className="td-chart">
             {mounted && totalSeries.length > 0 && (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={totalSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="eqCone" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3ee0ff" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#3ee0ff" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
                   <CartesianGrid stroke="#141414" vertical={false} />
                   <XAxis dataKey="label" tick={<TimeTick />} axisLine={false} tickLine={false} minTickGap={64} interval="preserveStartEnd" height={22} />
-                  <YAxis domain={totalDomain} ticks={axisTicks(totalDomain)} width={58} tickFormatter={(value: number) => `$${Number(value).toFixed(0)}`} tick={{ fill: "#737373", fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<EquityTooltip />} cursor={{ stroke: "#333" }} />
-                  <Area type="monotone" dataKey="total" name="TOTAL" stroke="#3ee0ff" fill="url(#eqCone)" strokeWidth={1.6} dot={false} connectNulls isAnimationActive={false} />
+                  <YAxis domain={totalDomain} ticks={axisTicks(totalDomain)} width={56} tickFormatter={(value: number) => formatPnl(value)} tick={{ fill: "#737373", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <ReferenceLine y={0} stroke="#3a3a3a" />
+                  <Tooltip content={<PnlTooltip />} cursor={{ stroke: "#333" }} />
+                  <Area type="monotone" dataKey="gain" stroke="none" fill="#3dff9a" fillOpacity={0.22} baseValue={0} dot={false} isAnimationActive={false} />
+                  <Area type="monotone" dataKey="loss" stroke="none" fill="#ff5d6c" fillOpacity={0.28} baseValue={0} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="total" name="P&L" stroke={pnlColorLine} strokeWidth={1.6} dot={false} isAnimationActive={false} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -342,9 +346,9 @@ function BotCard({
   trades: Trade[];
 }) {
   const mounted = useMounted();
-  const series = botEquitySeries(points, bot.id, bot.capital);
+  const series = botEquitySeries(points, bot.id, bot.capital).map((value) => value - bot.capital);
   const data = series.map((value, index) => ({ i: index, equity: value }));
-  const domain = paddedDomain(series, 0.35);
+  const domain = paddedDomain([...series, 0], 0.35);
   const pnl = equity - bot.capital;
   const botTrades = trades.filter((trade) => trade.bot === bot.id);
   const closed = botTrades.filter(isClosedTrade);
@@ -511,6 +515,29 @@ function SeriesDot(props: { cx?: number; cy?: number; value?: number | null; col
   const { cx, cy, value, color } = props;
   if (value == null || cx == null || cy == null || Number.isNaN(cx) || Number.isNaN(cy)) return null;
   return <circle cx={cx} cy={cy} r={3.5} fill={color} />;
+}
+
+function PnlTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload?: { total?: number } }>;
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const total = Number(payload[0]?.payload?.total);
+  if (!Number.isFinite(total)) return null;
+  return (
+    <div className="td-tip">
+      <div className="td-tip-label">{label}</div>
+      <div className="td-tip-row">
+        <span>P&L</span>
+        <span style={{ color: total >= 0 ? "#3dff9a" : "#ff5d6c" }}>{formatPnl(total)}</span>
+      </div>
+    </div>
+  );
 }
 
 function EquityTooltip({
