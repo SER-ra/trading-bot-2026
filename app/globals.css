@@ -2,6 +2,10 @@ html,
 body {
   margin: 0;
   background: #050505;
+  height: auto;
+  min-height: 100%;
+  overflow-x: clip;
+  overflow-y: auto;
 }
 
 .td-root,
@@ -15,7 +19,7 @@ body {
   background: #050505;
   color: #d4d4d4;
   font-family: "JetBrains Mono", ui-monospace, monospace;
-  overflow-x: hidden;
+  overflow: visible;
 }
 
 .td-canvas {
@@ -188,15 +192,126 @@ body {
   height: 56px;
 }
 
+.td-alloc {
+  padding: 0.85rem 0.9rem 0.95rem;
+  margin-bottom: 0.75rem;
+}
+
+.td-alloc-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+}
+
+.td-donut {
+  position: relative;
+  width: 188px;
+  height: 188px;
+  flex: none;
+}
+
+.td-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  gap: 0.1rem;
+}
+
+.td-donut-center strong {
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.td-alloc-legend {
+  list-style: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.38rem;
+}
+
+.td-alloc-legend li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  min-width: 0;
+  font-size: 0.72rem;
+}
+
+.td-alloc-legend i {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 2px;
+  flex: none;
+}
+
+.td-alloc-name {
+  font-weight: 600;
+  width: 4.6rem;
+  flex: none;
+}
+
+.td-alloc-eq {
+  color: #9a9a9a;
+  flex: 1;
+  min-width: 0;
+}
+
+.td-alloc-pct {
+  flex: none;
+  color: #e4e4e4;
+}
+
 .td-log-card {
   margin-top: 0.75rem;
-  padding: 0.85rem 0.85rem 0.4rem;
+  padding: 0;
 }
 
 .td-log {
-  max-height: 320px;
-  overflow: auto;
-  margin-top: 0.35rem;
+  height: 196px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: 0 0.45rem 0.45rem 0.85rem;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a transparent;
+}
+
+.td-log::-webkit-scrollbar {
+  width: 8px;
+}
+
+.td-log::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.td-log::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 8px;
+}
+
+.td-log-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 -0.45rem 0 -0.85rem;
+  padding: 0.75rem 0.85rem 0.4rem;
+  background: rgba(12, 12, 12, 0.98);
+  font-size: 0.6rem;
+  color: #666;
+  letter-spacing: 0.08em;
 }
 
 .td-empty {
@@ -286,8 +401,21 @@ body {
   .td-metric-value {
     font-size: 1.25rem;
   }
+  .td-alloc-body {
+    flex-direction: row;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .td-donut {
+    width: 220px;
+    height: 220px;
+  }
+  .td-alloc-legend {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem 1.4rem;
+  }
   .td-log {
-    max-height: 420px;
+    height: 210px;
   }
 }
 

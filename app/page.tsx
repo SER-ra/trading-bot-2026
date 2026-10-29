@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   type BotProfile,
   type EquityPoint,
@@ -167,6 +167,8 @@ export default function Dashboard() {
           </div>
         </div>
 
+        <AllocationDonut bots={bots} latest={latest} total={totalEquity} />
+
         <div className="td-card td-chart-card">
           <div className="td-chart-head">
             <div className="td-label">EQUITY TOTAL</div>
@@ -238,12 +240,12 @@ export default function Dashboard() {
         </div>
 
         <div className="td-card td-log-card">
-          <div className="td-label">TRADE LOG</div>
-          {log.length === 0 ? (
-            <div className="td-empty">No trades</div>
-          ) : (
-            <div className="td-log">
-              {log.map((trade) => {
+          <div className="td-log">
+            <div className="td-log-sticky">TRADE LOG</div>
+            {log.length === 0 ? (
+              <div className="td-empty">No trades</div>
+            ) : (
+              log.map((trade) => {
                 const bot = bots.find((item) => item.id === trade.bot);
                 const pnl = Number(trade.pnl);
                 const showPnl = isClosedTrade(trade) && Number.isFinite(pnl);
@@ -263,11 +265,97 @@ export default function Dashboard() {
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          )}
+              })
+            )}
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AllocationDonut({
+  bots,
+  latest,
+  total,
+}: {
+  bots: BotProfile[];
+  latest: Record<string, number>;
+  total: number;
+}) {
+  const mounted = useMounted();
+  const slices = bots.map((bot) => {
+    const equity = latest[bot.id] ?? bot.capital;
+    const share = total > 0 ? (equity / total) * 100 : 0;
+    return { id: bot.id, label: bot.label, color: bot.color, equity, share };
+  });
+
+  return (
+    <div className="td-card td-alloc">
+      <div className="td-label">ALLOCATION</div>
+      <div className="td-alloc-body">
+        <div className="td-donut">
+          {mounted && (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={slices}
+                  dataKey="equity"
+                  nameKey="label"
+                  innerRadius="62%"
+                  outerRadius="88%"
+                  paddingAngle={1.6}
+                  stroke="#0a0a0a"
+                  strokeWidth={2}
+                  startAngle={90}
+                  endAngle={-270}
+                  isAnimationActive={false}
+                >
+                  {slices.map((slice) => (
+                    <Cell key={slice.id} fill={slice.color} />
+                  ))}
+                </Pie>
+                <Tooltip content={<AllocTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+          <div className="td-donut-center">
+            <span className="td-label">BOTS</span>
+            <strong>{slices.length}</strong>
+          </div>
+        </div>
+        <ul className="td-alloc-legend">
+          {slices.map((slice) => (
+            <li key={slice.id}>
+              <i style={{ background: slice.color }} />
+              <span className="td-alloc-name">{slice.label}</span>
+              <span className="td-alloc-eq">{`$${slice.equity.toFixed(2)}`}</span>
+              <span className="td-alloc-pct">{`${slice.share.toFixed(1)}%`}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function AllocTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ name?: string; value?: number; payload?: { color?: string; share?: number } }>;
+}) {
+  if (!active || !payload?.length) return null;
+  const item = payload[0];
+  const share = item.payload?.share;
+  return (
+    <div className="td-tip">
+      <div className="td-tip-row">
+        <span style={{ color: item.payload?.color }}>{item.name}</span>
+        <span>{`$${Number(item.value).toFixed(2)}`}</span>
+      </div>
+      {share != null && <div className="td-tip-label">{`${share.toFixed(1)}% of equity`}</div>}
     </div>
   );
 }
