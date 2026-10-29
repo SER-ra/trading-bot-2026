@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import type { TorusSlice } from "../components/ParticleTorus";
 import {
   type BotProfile,
   type EquityPoint,
@@ -283,79 +284,26 @@ function AllocationDonut({
   latest: Record<string, number>;
   total: number;
 }) {
-  const mounted = useMounted();
-  const slices = bots.map((bot) => {
+  const slices: TorusSlice[] = bots.map((bot) => {
     const equity = latest[bot.id] ?? bot.capital;
     const share = total > 0 ? (equity / total) * 100 : 0;
-    return { id: bot.id, label: bot.label, color: bot.color, equity, share };
+    return { id: bot.id, label: bot.label, color: bot.color, equity, pnl: equity - bot.capital, share };
   });
+  const [Torus, setTorus] = useState<typeof import("../components/ParticleTorus").default | null>(null);
+  useEffect(() => {
+    let live = true;
+    import("../components/ParticleTorus").then((mod) => {
+      if (live) setTorus(() => mod.default);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   return (
     <div className="td-card td-alloc">
       <div className="td-label">ALLOCATION</div>
-      <div className="td-alloc-body">
-        <div className="td-donut">
-          {mounted && (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={slices}
-                  dataKey="equity"
-                  nameKey="label"
-                  innerRadius="62%"
-                  outerRadius="88%"
-                  paddingAngle={1.6}
-                  stroke="#0a0a0a"
-                  strokeWidth={2}
-                  startAngle={90}
-                  endAngle={-270}
-                  isAnimationActive={false}
-                >
-                  {slices.map((slice) => (
-                    <Cell key={slice.id} fill={slice.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<AllocTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-          <div className="td-donut-center">
-            <span className="td-label">BOTS</span>
-            <strong>{slices.length}</strong>
-          </div>
-        </div>
-        <ul className="td-alloc-legend">
-          {slices.map((slice) => (
-            <li key={slice.id}>
-              <i style={{ background: slice.color }} />
-              <span className="td-alloc-name">{slice.label}</span>
-              <span className="td-alloc-eq">{`$${slice.equity.toFixed(2)}`}</span>
-              <span className="td-alloc-pct">{`${slice.share.toFixed(1)}%`}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-function AllocTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ name?: string; value?: number; payload?: { color?: string; share?: number } }>;
-}) {
-  if (!active || !payload?.length) return null;
-  const item = payload[0];
-  const share = item.payload?.share;
-  return (
-    <div className="td-tip">
-      <div className="td-tip-row">
-        <span style={{ color: item.payload?.color }}>{item.name}</span>
-        <span>{`$${Number(item.value).toFixed(2)}`}</span>
-      </div>
-      {share != null && <div className="td-tip-label">{`${share.toFixed(1)}% of equity`}</div>}
+      {Torus ? <Torus slices={slices} total={total} /> : <div className="td-viz" />}
     </div>
   );
 }

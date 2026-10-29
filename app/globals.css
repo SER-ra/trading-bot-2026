@@ -193,83 +193,81 @@ body {
 }
 
 .td-alloc {
-  padding: 0.85rem 0.9rem 0.95rem;
+  padding: 0.75rem 0.55rem 0.7rem;
   margin-bottom: 0.75rem;
 }
 
-.td-alloc-body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.45rem;
-  margin-top: 0.25rem;
-}
-
-.td-donut {
+.td-viz {
   position: relative;
-  width: 188px;
-  height: 188px;
-  flex: none;
+  height: 480px;
+  width: 100%;
 }
 
-.td-donut-center {
+.td-viz-gl,
+.td-viz-lines {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
-  gap: 0.1rem;
 }
 
-.td-donut-center strong {
+.td-viz-lines {
+  z-index: 2;
+}
+
+.td-viz-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  padding: 1.1rem 1.3rem;
+  background: radial-gradient(circle, rgba(5, 5, 5, 0.92) 0%, rgba(5, 5, 5, 0.72) 46%, rgba(5, 5, 5, 0) 72%);
+}
+
+.td-viz-center strong {
+  display: block;
   font-size: 1.15rem;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.15;
+  text-shadow: 0 0 12px #000;
 }
 
-.td-alloc-legend {
-  list-style: none;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.38rem;
+.td-viz-label {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 50%;
+  min-width: 4.2rem;
+  padding: 0.26rem 0.38rem 0.22rem;
+  background: rgba(8, 8, 8, 0.84);
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  line-height: 1.2;
+  pointer-events: none;
+  opacity: 0;
+  text-align: center;
 }
 
-.td-alloc-legend li {
-  display: flex;
-  align-items: baseline;
-  gap: 0.45rem;
-  min-width: 0;
-  font-size: 0.72rem;
-}
-
-.td-alloc-legend i {
-  display: inline-block;
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 2px;
-  flex: none;
-}
-
-.td-alloc-name {
+.td-viz-name {
+  display: block;
   font-weight: 600;
-  width: 4.6rem;
-  flex: none;
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
 }
 
-.td-alloc-eq {
-  color: #9a9a9a;
-  flex: 1;
-  min-width: 0;
+.td-viz-eq {
+  display: block;
+  font-size: 0.66rem;
+  color: #e8e8e8;
 }
 
-.td-alloc-pct {
-  flex: none;
-  color: #e4e4e4;
+.td-viz-pnl {
+  display: block;
+  font-size: 0.6rem;
 }
 
 .td-log-card {
@@ -401,18 +399,18 @@ body {
   .td-metric-value {
     font-size: 1.25rem;
   }
-  .td-alloc-body {
-    flex-direction: row;
-    align-items: center;
-    gap: 1.5rem;
+  .td-alloc {
+    padding: 0.85rem 0.9rem 0.8rem;
   }
-  .td-donut {
-    width: 220px;
-    height: 220px;
+  .td-viz {
+    height: 520px;
   }
-  .td-alloc-legend {
-    grid-template-columns: 1fr 1fr;
-    gap: 0.55rem 1.4rem;
+  .td-viz-center strong {
+    font-size: 1.45rem;
+  }
+  .td-viz-name,
+  .td-viz-eq {
+    font-size: 0.72rem;
   }
   .td-log {
     height: 210px;
