@@ -443,6 +443,14 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
         ctx.shadowColor = color;
         ctx.shadowBlur = 6;
         ctx.stroke();
+        if (!reducedRef.current) {
+          const travel = (performance.now() / 1600 + index * 0.17) % 1;
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(ax + (tx - ax) * travel, ay + (ty - ay) * travel, 2.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
       });
       ctx.shadowBlur = 0;
     };
@@ -489,7 +497,7 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
   return (
     <div className="td-viz" ref={wrapRef}>
       <canvas ref={lineRef} className="td-viz-lines" aria-hidden />
-      <div className="td-viz-row">{topSlices.map((slice, index) => renderLabel(slice, index))}</div>
+      <div className="td-viz-row td-viz-row-top">{topSlices.map((slice, index) => renderLabel(slice, index))}</div>
       <div className="td-viz-stage" ref={stageRef}>
         <canvas ref={glRef} className="td-viz-gl" aria-hidden />
         <div className="td-viz-center">
@@ -497,7 +505,7 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
           <strong>{money(total)}</strong>
         </div>
       </div>
-      <div className="td-viz-row">{bottomSlices.map((slice, index) => renderLabel(slice, split + index))}</div>
+      <div className="td-viz-row td-viz-row-bot">{bottomSlices.map((slice, index) => renderLabel(slice, split + index))}</div>
     </div>
   );
 }
