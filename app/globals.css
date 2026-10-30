@@ -675,3 +675,98 @@ body {
   .td-foot { grid-area: foot; padding: 0; border: 0; align-items: center; }
 }
 
+
+/* ===================== Página inicial + Selene_v1 =====================
+   Regras isoladas (prefixos hm- e s1-). Não alteram o dashboard /v2. */
+
+.td-home-link { color: #9fd; text-decoration: none; }
+.td-home-link:hover { color: #fff; }
+
+/* o layout largo do /v2 bloqueia o scroll da página; estas páginas precisam dele */
+@media (min-width: 1280px) {
+  html:has(.hm-root), html:has(.hm-root) body,
+  html:has(.s1-root), html:has(.s1-root) body { height: auto; overflow-y: auto; overflow-x: clip; }
+}
+
+.hm-root, .s1-root {
+  min-height: 100vh;
+  background: #050505 radial-gradient(900px 420px at 80% -10%, rgba(233, 228, 212, 0.06), transparent 65%);
+  color: #d4d4d4;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+.hm-root *, .s1-root * { box-sizing: border-box; }
+
+/* ---------- página inicial ---------- */
+.hm-shell { max-width: 1040px; margin: 0 auto; padding: 3rem 1rem 2rem; }
+.hm-head { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 2rem; }
+.hm-head h1 { margin: 0; font-size: 1.25rem; letter-spacing: 0.32em; color: #f0efec; font-weight: 600; }
+.hm-sub { font-size: 0.62rem; letter-spacing: 0.14em; color: #6b6b6b; margin-top: 0.25rem; }
+.hm-moon {
+  width: 38px; height: 38px; border-radius: 50%; position: relative;
+  background: #e9e4d4; box-shadow: 0 0 28px rgba(233, 228, 212, 0.25);
+}
+.hm-moon::after {
+  content: ""; position: absolute; width: 32px; height: 32px; border-radius: 50%;
+  background: #050505; top: -3px; left: 11px;
+}
+.hm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.hm-card {
+  display: flex; flex-direction: column; gap: 0.35rem;
+  padding: 1.15rem 1.2rem 1rem; border-radius: 14px; text-decoration: none; color: inherit;
+  background: rgba(10, 10, 10, 0.88); border: 1px solid #1c1c1c;
+  border-top: 2px solid var(--hm-accent);
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.hm-card:hover { border-color: #2c2c2c; border-top-color: var(--hm-accent); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); }
+.hm-card-top { display: flex; align-items: center; gap: 0.6rem; font-size: 0.7rem; letter-spacing: 0.1em; }
+.hm-name { color: var(--hm-accent); font-weight: 600; font-size: 0.85rem; }
+.hm-engine { color: #777; border: 1px solid #262626; border-radius: 4px; padding: 0.05rem 0.35rem; font-size: 0.58rem; }
+.hm-state { margin-left: auto; font-size: 0.6rem; }
+.hm-desc { color: #7a7a7a; font-size: 0.66rem; line-height: 1.5; min-height: 2.9em; }
+.hm-eq { font-size: 2.1rem; font-weight: 600; color: #f0efec; letter-spacing: -0.02em; margin-top: 0.4rem; }
+.hm-ret { font-size: 0.78rem; font-weight: 500; }
+.hm-ret span { color: #777; font-weight: 400; }
+.hm-spark { height: 70px; margin: 0.4rem 0 0.2rem; }
+.hm-meta { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.6rem; color: #8a8a8a; letter-spacing: 0.05em; border-top: 1px solid #161616; padding-top: 0.6rem; }
+.hm-err { color: #ff5d6c; font-size: 0.6rem; }
+.hm-open { margin-top: 0.7rem; font-size: 0.66rem; letter-spacing: 0.12em; color: var(--hm-accent); }
+.hm-foot { margin-top: 2rem; font-size: 0.6rem; color: #555; letter-spacing: 0.05em; }
+
+/* ---------- Selene_v1 ---------- */
+.s1-shell { max-width: 1040px; margin: 0 auto; padding: 0.85rem 0.8rem 2rem; display: flex; flex-direction: column; gap: 0.55rem; }
+.s1-shell .td-ticker { margin: 0; }
+.s1-alert { border: 1px solid #4a3a10; background: rgba(250, 178, 25, 0.07); color: #fab219; font-size: 0.66rem; padding: 0.5rem 0.65rem; border-radius: 10px; }
+.s1-top { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.6fr); gap: 0.55rem; }
+.s1-wallet { padding: 0.75rem 0.8rem; }
+.s1-wallet .td-total { font-size: 2rem; margin: 0.3rem 0 0.2rem; }
+.s1-desc { margin-top: 0.8rem; font-size: 0.6rem; line-height: 1.55; color: #6b6b6b; }
+.s1-chartcard { padding: 0.55rem 0.65rem; display: flex; flex-direction: column; }
+.s1-chart { height: 220px; }
+.s1-legend { display: flex; gap: 0.8rem; font-size: 0.56rem; color: #8a8a8a; letter-spacing: 0.06em; }
+.s1-legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
+.s1-legend i { width: 12px; height: 2px; display: inline-block; }
+.s1-legend i.dash { height: 0; border-top: 2px dashed; background: none; }
+.s1-signals { padding: 0.55rem 0.65rem; }
+.s1-coins { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.55rem; margin-top: 0.4rem; }
+.s1-coin { border: 1px solid #1a1a1a; border-radius: 10px; padding: 0.6rem 0.7rem; background: rgba(14, 14, 14, 0.9); }
+.s1-coin-head { display: flex; align-items: baseline; gap: 0.6rem; }
+.s1-coin-name { color: #e9e4d4; font-weight: 600; font-size: 0.85rem; }
+.s1-coin-px { color: #d4d4d4; font-size: 0.8rem; }
+.s1-coin-sig { margin-left: auto; font-size: 0.62rem; letter-spacing: 0.08em; }
+.s1-bar { position: relative; height: 6px; margin: 0.75rem 0 0.6rem; border-radius: 3px; background: #161616; }
+.s1-bar i { position: absolute; top: -3px; width: 2px; height: 12px; background: #8a8a8a; border-radius: 1px; }
+.s1-bar b { position: absolute; top: -5px; width: 3px; height: 16px; background: #e9e4d4; border-radius: 1px; box-shadow: 0 0 8px rgba(233, 228, 212, 0.5); }
+.s1-coin-meta { display: flex; flex-wrap: wrap; gap: 0.25rem 0.8rem; font-size: 0.56rem; color: #7a7a7a; letter-spacing: 0.05em; }
+.s1-tape { padding: 0.55rem 0.65rem; }
+.s1-tape-grid { display: grid; grid-template-columns: 6rem 3.5rem 3.5rem 5rem 5rem 1fr; gap: 0.3rem; font-size: 0.6rem; }
+.s1-tape-head { color: #667; letter-spacing: 0.06em; padding: 0.35rem 0 0.2rem; }
+.s1-tape-body { max-height: 260px; overflow: auto; }
+.s1-tape-row { padding: 0.3rem 0; border-top: 1px solid #161616; }
+.s1-foot { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.58rem; color: #555; letter-spacing: 0.07em; padding-top: 0.2rem; }
+
+@media (max-width: 760px) {
+  .hm-grid, .s1-top { grid-template-columns: 1fr; }
+  .hm-shell { padding-top: 1.6rem; }
+  .s1-tape-grid { grid-template-columns: 5.2rem 3rem 3rem 4rem 1fr; }
+  .s1-tape-grid > :nth-child(6) { display: none; }
+}
