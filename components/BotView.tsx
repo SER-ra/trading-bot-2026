@@ -67,6 +67,8 @@ export interface BotViewProps {
   operacoes: Operacao[];
   semOperacoes: string;
   ligacaoExtra?: { href: string; texto: string };
+  topo?: React.ReactNode;
+  fundo?: React.ReactNode;
   rodape: string;
 }
 
@@ -83,7 +85,8 @@ export default function BotView(p: BotViewProps) {
   const dominio = paddedDomain([...valores, 0], 0.18);
 
   return (
-    <div className="bv-root" style={{ ["--bv-cor" as string]: p.cor }}>
+    <div className={`bv-root${p.fundo ? " com-fundo" : ""}`} style={{ ["--bv-cor" as string]: p.cor }}>
+      {p.fundo}
       <div className="bv-shell">
         <nav className="bv-nav">
           <a href="/" className="bv-voltar">← Início</a>
@@ -103,6 +106,8 @@ export default function BotView(p: BotViewProps) {
             {p.estado.detalhe && <small>{p.estado.detalhe}</small>}
           </div>
         </header>
+
+        {p.topo}
 
         <section className="bv-card bv-resumo">
           <div className="bv-principal">

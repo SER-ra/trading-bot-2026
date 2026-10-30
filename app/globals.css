@@ -882,3 +882,47 @@ body {
 .gm-lista li.ok .gm-check { background: color-mix(in srgb, var(--bv-bom) 18%, transparent); color: var(--bv-bom); }
 .gm-falta { margin-left: auto; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; color: var(--bv-mudo); }
 @media (max-width: 720px) { .bv-activos.largos { grid-template-columns: 1fr; } }
+
+/* ===================== Selene_v1: lua, contagem e estrelas ===================== */
+.bv-estrelas { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 0; }
+.bv-root.com-fundo .bv-shell { position: relative; z-index: 1; }
+.bv-root.com-fundo .bv-card { background: rgba(14, 14, 16, 0.78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); transition: border-color .25s, box-shadow .25s; }
+.bv-root.com-fundo .bv-card:hover { border-color: color-mix(in srgb, var(--bv-cor) 35%, var(--bv-linha)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--bv-cor) 12%, transparent), 0 12px 40px -12px color-mix(in srgb, var(--bv-cor) 30%, transparent); }
+.bv-root.com-fundo .bv-activo { background: rgba(10, 10, 12, 0.7); }
+
+.lua-painel {
+  display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 22px; align-items: center;
+  padding: 20px 24px; border-radius: 18px; border: 1px solid var(--bv-linha);
+  background: linear-gradient(135deg, rgba(233, 228, 212, 0.05), rgba(14, 14, 16, 0.75) 45%);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); position: relative; overflow: hidden;
+}
+.lua-painel::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 3px);
+}
+.lua-wrap { position: relative; }
+.lua-svg { width: 100%; height: auto; display: block; animation: lua-flutua 7s ease-in-out infinite; }
+.lua-halo { animation: lua-pulso 4.5s ease-in-out infinite; transform-origin: 60px 60px; }
+.lua-painel.cheia { border-color: rgba(233, 228, 212, 0.45); box-shadow: 0 0 60px -10px rgba(233, 228, 212, 0.35); }
+.lua-painel.cheia .lua-svg { filter: drop-shadow(0 0 18px rgba(255, 250, 230, 0.55)); }
+.lua-fase { font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--bv-mudo); }
+.lua-titulo { font-size: 20px; font-weight: 600; margin-top: 4px; color: var(--bv-tinta); }
+.lua-moedas { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 12px; }
+.lua-moeda { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+.lua-pontos { display: inline-flex; gap: 5px; }
+.lua-pontos i { width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(233, 228, 212, 0.35); }
+.lua-pontos i.on { background: #e9e4d4; border-color: #e9e4d4; box-shadow: 0 0 8px rgba(233, 228, 212, 0.7); }
+.lua-n { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; color: var(--bv-mudo); font-weight: 400; }
+.lua-contagem { display: flex; align-items: baseline; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--bv-linha); flex-wrap: wrap; }
+.lua-contagem-rot { font-size: 13px; color: var(--bv-tinta2); }
+.lua-relogio { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 26px; font-weight: 600; letter-spacing: 0.04em; color: #e9e4d4; text-shadow: 0 0 14px rgba(233, 228, 212, 0.35); font-variant-numeric: tabular-nums; }
+.lua-relogio b { font-weight: 400; color: var(--bv-mudo); animation: lua-pisca 1s steps(1) infinite; }
+@keyframes lua-flutua { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes lua-pulso { 0%, 100% { transform: scale(0.96); } 50% { transform: scale(1.04); } }
+@keyframes lua-pisca { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .lua-svg, .lua-halo, .lua-relogio b { animation: none; } }
+@media (max-width: 720px) {
+  .lua-painel { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; padding: 16px; }
+  .lua-titulo { font-size: 16px; }
+  .lua-relogio { font-size: 22px; }
+}

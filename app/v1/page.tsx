@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import BotView, { BarraMedias, type Activo, type Estado } from "../../components/BotView";
 import GraficoMedias, { type Vela } from "../../components/GraficoMedias";
+import PainelLua, { condicoesCumpridas } from "../../components/PainelLua";
+import Estrelas from "../../components/Estrelas";
 import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, moedasDoDia, resumo, serieRetorno } from "../../lib/selene";
 import { comSinal, dataHora, dinheiro, haQuanto, lado, percent, preco, tom } from "../../lib/formato";
 
@@ -55,6 +57,14 @@ export default function SeleneV1() {
 
   return (
     <BotView
+      fundo={<Estrelas />}
+      topo={
+        <PainelLua
+          progresso={Object.entries(velas)
+            .filter((e): e is [string, Vela[]] => Array.isArray(e[1]) && e[1].length > 0)
+            .map(([moeda, v]) => ({ moeda, n: condicoesCumpridas(v) }))}
+        />
+      }
       nome="Selene_v1"
       motor="Claude"
       cor={SELENE_V1_COLOR}
