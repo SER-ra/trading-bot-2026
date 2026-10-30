@@ -6,6 +6,7 @@ import GraficoMedias, { type Vela } from "../../components/GraficoMedias";
 import PainelLua, { condicoesCumpridas } from "../../components/PainelLua";
 import Estrelas from "../../components/Estrelas";
 import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, moedasDoDia, resumo, serieRetorno } from "../../lib/selene";
+import { MiniCurva } from "../../components/BotView";
 import { comSinal, data, dataHora, dinheiro, haQuanto, lado, percent, preco, tom } from "../../lib/formato";
 
 interface Observacao {
@@ -17,6 +18,16 @@ interface Observacao {
   retornoRegra: number;
   retornoGuardar: number | null;
   custoPorOperacao: number;
+  simulacao?: {
+    arranque: number;
+    capital: number;
+    valor: number;
+    dentro: boolean;
+    eventos: { t: number; tipo: "entrada" | "saida"; preco: number }[];
+    serie: { t: number; valor: number }[];
+    guardar: number;
+    ultimoFecho: number;
+  };
 }
 
 export default function SeleneV1() {
@@ -84,11 +95,12 @@ export default function SeleneV1() {
       etiquetaActiva: false,
       extra: (
         <>
+          {obs.simulacao && <SimulacaoErgo s={obs.simulacao} />}
           <GraficoMedias velas={obs.velas} />
           <p className="obs-nota">
-            Teste sem dinheiro. Desde {obs.desde ? data(obs.desde) : "—"}, a mesma regra teria dado{" "}
-            <b className={obs.retornoRegra >= 0 ? "bom" : "mau"}>{percent(obs.retornoRegra)}</b>
-            {obs.retornoGuardar != null && <> contra <b className={obs.retornoGuardar >= 0 ? "bom" : "mau"}>{percent(obs.retornoGuardar)}</b> a guardar ERG</>}
+            Teste sem dinheiro. Desde {obs.desde ? data(obs.desde) : "—"}, com a mesma regra 100 $ teriam passado a{" "}<b className={obs.retornoRegra >= 0 ? "bom" : "mau"}>${dinheiro(100 * (1 + obs.retornoRegra / 100))}</b>{" "}(
+            {percent(obs.retornoRegra)})
+            {obs.retornoGuardar != null && <> contra ${dinheiro(100 * (1 + obs.retornoGuardar / 100))} a guardar ERG</>}
             {" "}({(() => { const n = obs.eventos.filter((e) => e.tipo === "entrada").length; return `${n} ${n === 1 ? "entrada" : "entradas"}`; })()}, já com {String(obs.custoPorOperacao).replace(".", ",")}% de custo por operação).
             Preço agregado do CoinGecko; na DEX (Spectrum) a liquidez é pequena e o preço real pode diferir.
           </p>
@@ -145,5 +157,27 @@ export default function SeleneV1() {
       semOperacoes="Ainda nenhuma. A Selene_v1 está fora do mercado à espera de uma tendência de subida."
       rodape="Simulação: nenhum valor aqui é dinheiro real. Actualiza uma vez por dia, por volta da 01h10. Não é aconselhamento financeiro."
     />
+  );
+}
+
+/** Carteira de teste de 100 $ em ERG, recalculada a cada fecho diário a partir do arranque. */
+function SimulacaoErgo({ s }: { s: NonNullable<Observacao["simulacao"]> }) {
+  const res = s.valor - s.capital;
+  const vsGuardar = s.valor - s.guardar;
+  return (
+    <div className="obs-sim">
+      <div className="obs-sim-top">
+        <span className="bv-rotulo">Carteira de teste · desde {data(s.arranque)}</span>
+        <span className={`bv-tag ${s.dentro ? "on" : ""}`}>{s.dentro ? "Comprado" : "Fora"}</span>
+      </div>
+      <div className="obs-sim-valor">
+        ${dinheiro(s.valor)} <small style={{ color: res > 0.005 ? "var(--bv-bom)" : res < -0.005 ? "var(--bv-mau)" : "var(--bv-mudo)" }}>{comSinal(res)} $ ({percent((res / s.capital) * 100)})</small>
+      </div>
+      <div className="obs-sim-l2">
+        Começou com ${dinheiro(s.capital)}. Guardar ERG daria ${dinheiro(s.guardar)} ({vsGuardar >= 0 ? "a regra vai à frente" : "guardar vai à frente"}).
+        {" "}{s.eventos.length ? `${s.eventos.length} ${s.eventos.length === 1 ? "operação" : "operações"}` : "Ainda sem operações"} · último fecho {data(s.ultimoFecho)}.
+      </div>
+      {s.serie.length > 1 && <MiniCurva valores={s.serie.map((p) => p.valor)} cor="#e9e4d4" />}
+    </div>
   );
 }

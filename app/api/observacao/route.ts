@@ -11,6 +11,30 @@ export const revalidate = 3600;
 const DIAS_VISIVEIS = 150;
 const CUSTO_POR_OPERACAO = 0.006; // 0,6% por compra ou venda (comissão + slippage estimados numa DEX pequena)
 
+const CAPITAL = 100;
+const ARRANQUE = Date.UTC(2026, 9, 27); // fecho de 27/10/2026: primeiro dia do teste
+
+type Ponto = { t: number; preco: number; ma50: number | null; ma100: number | null; ma200: number | null };
+
+/** Entra (tudo) quando as 4 condições se cumprem, sai quando deixam de se cumprir; custo por operação incluído. */
+function simular(pontos: Ponto[], capital0: number) {
+  const eventos: { t: number; tipo: "entrada" | "saida"; preco: number }[] = [];
+  const serie: { t: number; valor: number }[] = [];
+  let dentro = false, caixa = capital0, unidades = 0;
+  for (const p of pontos) {
+    const ok = p.preco > p.ma50! && p.preco > p.ma100! && p.preco > p.ma200! && p.ma50! > p.ma100! && p.ma100! > p.ma200!;
+    if (ok && !dentro) {
+      unidades = (caixa * (1 - CUSTO_POR_OPERACAO)) / p.preco; caixa = 0; dentro = true;
+      eventos.push({ t: p.t, tipo: "entrada", preco: p.preco });
+    } else if (!ok && dentro) {
+      caixa = unidades * p.preco * (1 - CUSTO_POR_OPERACAO); unidades = 0; dentro = false;
+      eventos.push({ t: p.t, tipo: "saida", preco: p.preco });
+    }
+    serie.push({ t: p.t, valor: dentro ? unidades * p.preco : caixa });
+  }
+  return { eventos, serie, dentro, valor: serie.at(-1)?.valor ?? capital0 };
+}
+
 function media(v: number[], fim: number, n: number): number | null {
   if (fim + 1 < n) return null;
   let s = 0;
@@ -41,30 +65,14 @@ export async function GET() {
       ma200: media(fecho, i, 200),
     }));
 
-    // simulação da regra sobre todo o período em que já há média de 200 dias
-    const eventos: { t: number; tipo: "entrada" | "saida"; preco: number }[] = [];
-    let dentro = false;
-    let capital = 1;
-    let unidades = 0;
-    let inicio: { t: number; preco: number } | null = null;
-    for (const p of pontos) {
-      if (p.ma50 == null || p.ma100 == null || p.ma200 == null) continue;
-      if (!inicio) inicio = { t: p.t, preco: p.preco };
-      const ok = p.preco > p.ma50 && p.preco > p.ma100 && p.preco > p.ma200 && p.ma50 > p.ma100 && p.ma100 > p.ma200;
-      if (ok && !dentro) {
-        unidades = (capital * (1 - CUSTO_POR_OPERACAO)) / p.preco;
-        capital = 0;
-        dentro = true;
-        eventos.push({ t: p.t, tipo: "entrada", preco: p.preco });
-      } else if (!ok && dentro) {
-        capital = unidades * p.preco * (1 - CUSTO_POR_OPERACAO);
-        unidades = 0;
-        dentro = false;
-        eventos.push({ t: p.t, tipo: "saida", preco: p.preco });
-      }
-    }
+    const comMedias = pontos.filter((p) => p.ma50 != null && p.ma100 != null && p.ma200 != null);
     const ultimo = pontos.at(-1)!;
-    const valorFinal = dentro ? unidades * ultimo.preco : capital;
+
+    // histórico: a regra desde que há média de 200 dias
+    const hist = simular(comMedias, CAPITAL);
+    // carteira de teste: 100 $ a contar a partir do arranque do teste
+    const desdeArranque = comMedias.filter((p) => p.t >= ARRANQUE);
+    const sim = simular(desdeArranque, CAPITAL);
 
     return NextResponse.json(
       {
@@ -72,11 +80,21 @@ export async function GET() {
         nome: "Ergo",
         fonte: "CoinGecko (preço agregado)",
         velas: pontos.slice(-DIAS_VISIVEIS),
-        eventos,
-        dentro,
-        desde: inicio?.t ?? null,
-        retornoRegra: (valorFinal - 1) * 100,
-        retornoGuardar: inicio ? (ultimo.preco / inicio.preco - 1) * 100 : null,
+        eventos: hist.eventos,
+        dentro: hist.dentro,
+        desde: comMedias[0]?.t ?? null,
+        retornoRegra: (hist.valor / CAPITAL - 1) * 100,
+        retornoGuardar: comMedias[0] ? (ultimo.preco / comMedias[0].preco - 1) * 100 : null,
+        simulacao: {
+          arranque: ARRANQUE,
+          capital: CAPITAL,
+          valor: sim.valor,
+          dentro: sim.dentro,
+          eventos: sim.eventos,
+          serie: sim.serie,
+          guardar: desdeArranque[0] ? CAPITAL * (ultimo.preco / desdeArranque[0].preco) : CAPITAL,
+          ultimoFecho: ultimo.t,
+        },
         custoPorOperacao: CUSTO_POR_OPERACAO * 100,
       },
       { headers: { "Cache-Control": "s-maxage=3600, stale-while-revalidate=7200" } }

@@ -950,3 +950,9 @@ body {
 @keyframes lua-varrimento { 0%, 55% { left: -40%; } 100% { left: 110%; } }
 .bv-root.com-fundo .bv-nome { text-shadow: 0 0 18px color-mix(in srgb, var(--bv-cor) 45%, transparent); }
 @media (prefers-reduced-motion: reduce) { .bv-nebulosa, .lua-painel::before { animation: none; } .lua-painel::before { display: none; } }
+.obs-sim { margin: 4px 0 14px; padding: 12px 14px; border: 1px solid var(--bv-linha); border-radius: 12px; background: linear-gradient(135deg, rgba(233, 228, 212, 0.05), transparent 60%); }
+.obs-sim-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.obs-sim-valor { font-size: 24px; font-weight: 600; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.obs-sim-valor small { font-size: 13px; font-weight: 500; margin-left: 6px; }
+.obs-sim-l2 { font-size: 13px; color: var(--bv-mudo); margin-top: 4px; line-height: 1.45; }
+.obs-sim .bv-mini { margin-top: 8px; height: 28px; width: 100%; }
