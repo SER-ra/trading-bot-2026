@@ -961,3 +961,12 @@ body {
   -webkit-mask: radial-gradient(circle 16px at 27px 13px, transparent 97%, #000 100%);
   mask: radial-gradient(circle 16px at 27px 13px, transparent 97%, #000 100%);
 }
+
+/* Painéis transparentes: o céu vê-se por trás (desfoque leve só para manter o texto legível) */
+.bv-root.com-fundo .bv-card { background: rgba(12, 12, 18, 0.34); backdrop-filter: blur(1.5px); -webkit-backdrop-filter: blur(1.5px); border-color: rgba(233, 228, 212, 0.10); }
+.bv-root.com-fundo .bv-activo { background: rgba(10, 10, 14, 0.28); border-color: rgba(233, 228, 212, 0.08); }
+.bv-root.com-fundo .lua-painel { background: linear-gradient(135deg, rgba(233, 228, 212, 0.05), rgba(12, 12, 18, 0.30) 45%); backdrop-filter: blur(1.5px); -webkit-backdrop-filter: blur(1.5px); }
+.hm-root.com-fundo .hm-card { background: rgba(12, 12, 18, 0.34); backdrop-filter: blur(1.5px); -webkit-backdrop-filter: blur(1.5px); border-color: rgba(233, 228, 212, 0.10); }
+.bv-root.com-fundo .bv-card, .bv-root.com-fundo .lua-painel, .hm-root.com-fundo .hm-card { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.bv-root.com-fundo .bv-resumo { border-top-color: var(--bv-cor); }
+.hm-root.com-fundo .hm-card, .hm-root.com-fundo .hm-card:hover { border-top-color: var(--hm-accent); }
