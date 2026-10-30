@@ -97,16 +97,14 @@ export default function SeleneV1() {
     });
   }
 
+  const progresso = Object.entries(velas)
+    .filter((e): e is [string, Vela[]] => Array.isArray(e[1]) && e[1].length > 0)
+    .map(([moeda, v]) => ({ moeda, n: condicoesCumpridas(v) }));
+
   return (
     <BotView
-      fundo={<Estrelas />}
-      topo={
-        <PainelLua
-          progresso={Object.entries(velas)
-            .filter((e): e is [string, Vela[]] => Array.isArray(e[1]) && e[1].length > 0)
-            .map(([moeda, v]) => ({ moeda, n: condicoesCumpridas(v) }))}
-        />
-      }
+      fundo={<Estrelas intensidade={Math.max(0, ...progresso.map((p) => p.n)) / 4} />}
+      topo={<PainelLua progresso={progresso} />}
       nome="Selene_v1"
       motor="Claude"
       cor={SELENE_V1_COLOR}

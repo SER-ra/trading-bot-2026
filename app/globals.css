@@ -931,3 +931,22 @@ body {
 .obs-nota { margin: 12px 0 0; font-size: 13px; line-height: 1.5; color: var(--bv-mudo); }
 .obs-nota b.bom { color: var(--bv-bom); font-weight: 600; }
 .obs-nota b.mau { color: var(--bv-mau); font-weight: 600; }
+
+/* Céu da Selene_v1: nebulosa, brilho no painel da lua e no nome */
+.bv-nebulosa {
+  position: fixed; inset: -10%; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(40% 35% at 78% 12%, rgba(120, 140, 255, 0.07), transparent 70%),
+    radial-gradient(35% 30% at 12% 70%, rgba(176, 140, 255, 0.06), transparent 70%),
+    radial-gradient(30% 25% at 55% 95%, rgba(255, 200, 150, 0.04), transparent 70%);
+  animation: nebulosa-deriva 80s ease-in-out infinite alternate;
+}
+@keyframes nebulosa-deriva { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(-3%, 2%, 0) scale(1.06); } }
+.lua-painel::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 40%; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 250, 235, 0.06), transparent);
+  animation: lua-varrimento 9s ease-in-out infinite;
+}
+@keyframes lua-varrimento { 0%, 55% { left: -40%; } 100% { left: 110%; } }
+.bv-root.com-fundo .bv-nome { text-shadow: 0 0 18px color-mix(in srgb, var(--bv-cor) 45%, transparent); }
+@media (prefers-reduced-motion: reduce) { .bv-nebulosa, .lua-painel::before { animation: none; } .lua-painel::before { display: none; } }
