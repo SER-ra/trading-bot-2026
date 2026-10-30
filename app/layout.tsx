@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
         <meta name="theme-color" content="#050505" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

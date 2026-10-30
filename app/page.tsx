@@ -17,8 +17,8 @@ import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, resumo, seri
 
 const V2_COLOR = "#ff8a4c";
 
-const pct = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toFixed(2)}%`;
-const money = (n: number) => `$${n.toFixed(2)}`;
+const pct = (n: number) => `${n > 0.00001 ? "+" : n < -0.00001 ? "−" : ""}${Math.abs(n).toFixed(2).replace(".", ",")}%`;
+const money = (n: number) => `$${n.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 interface Resumo {
   equity: number;
@@ -62,9 +62,9 @@ export default function Home() {
       horas: horasDesde(r.ultimoRegisto),
       limite: 26,
       detalhe: [
-        `EXPOSIÇÃO ${Math.round(Number(r.ultimo?.exposicao_pct ?? 0))}%`,
-        moedas.map((m) => `${m.moeda} ${(m.sinal ?? "—").toUpperCase()}`).join(" · ") || "SEM SINAIS",
-        `DD MÁX ${pct(r.quedaMaxPct)}`,
+        `Investido ${Math.round(Number(r.ultimo?.exposicao_pct ?? 0))}%`,
+        moedas.map((m) => `${m.moeda}: ${(m.sinal ?? "—").toLowerCase()}`).join(" · ") || "Sem sinais",
+        `Pior queda ${pct(r.quedaMaxPct)}`,
       ],
       serie: serieRetorno(selene).map((p, i) => ({ i, v: p.selene })),
     };
@@ -89,42 +89,42 @@ export default function Home() {
       horas: ultimo ? horasDesde(ultimo) : null,
       limite: 6,
       detalhe: [
-        `BOTS ${bots.length}`,
+        `${bots.length} bots`,
         bots.map((b) => b.label).join(" · "),
-        `POSIÇÕES ABERTAS ${live.filter(isOpenTrade).length}`,
+        `Posições abertas: ${live.filter(isOpenTrade).length}`,
       ],
       serie,
     };
   }, [equity, trades]);
 
   return (
-    <div className="hm-root">
+    <div className="bv-root hm-root" style={{ ["--bv-cor" as string]: "#e9e4d4" }}>
       <div className="hm-shell">
         <header className="hm-head">
           <div className="hm-moon" aria-hidden />
           <div>
-            <h1>SELENE</h1>
-            <div className="hm-sub">PAPER TRADING · ESCOLHE UMA VERSÃO</div>
+            <h1>Selene</h1>
+            <div className="hm-sub">Bots de negociação em simulação. Escolhe uma versão.</div>
           </div>
         </header>
 
         <div className="hm-grid">
           <BotEntry
             href="/v1"
-            nome="SELENE_V1"
-            motor="CLAUDE"
+            nome="Selene_v1"
+            motor="Claude"
             cor={SELENE_V1_COLOR}
-            descricao="Tendência diária em BTC e ETH, médias 50/100/200. Comprada ou fora, sem alavancagem."
+            descricao="Segue a tendência diária de BTC e ETH. Compra ou fica fora, sem alavancagem."
             r={v1}
             erro={falhas.v1}
             mounted={mounted}
           />
           <BotEntry
             href="/v2"
-            nome="SELENE_V2"
-            motor="GROK"
+            nome="Selene_v2"
+            motor="Grok"
             cor={V2_COLOR}
-            descricao="Vários bots de 250 USDT (BTC, ETH, SOL, XRP, grid, funding). Entradas em 4h/1d, long e short."
+            descricao="Vários bots de 250 USDT (BTC, ETH, SOL, XRP, grelha e funding), a comprar ou a vender."
             r={v2}
             erro={falhas.v2}
             mounted={mounted}
@@ -145,21 +145,21 @@ function BotEntry({
   href: string; nome: string; motor: string; cor: string; descricao: string; r: Resumo; erro?: string; mounted: boolean;
 }) {
   const parado = r.horas != null && r.horas > r.limite;
-  const corRet = r.retorno > 0.0001 ? "#3dff9a" : r.retorno < -0.0001 ? "#ff5d6c" : "#d4d4d4";
+  const corRet = r.retorno > 0.0001 ? "var(--bv-bom)" : r.retorno < -0.0001 ? "var(--bv-mau)" : "var(--bv-tinta)";
   const domain = paddedDomain([...r.serie.map((p) => p.v), 0], 0.25);
   return (
     <a className="hm-card" href={href} style={{ ["--hm-accent" as string]: cor }}>
       <div className="hm-card-top">
         <span className="hm-name">{nome}</span>
         <span className="hm-engine">{motor}</span>
-        <span className="hm-state" style={{ color: erro ? "#ff5d6c" : parado ? "#fab219" : "#22c55e" }}>
-          ● {erro ? "ERRO" : parado ? "PARADO" : "ACTIVO"}
+        <span className="hm-state" style={{ color: erro ? "var(--bv-mau)" : parado ? "var(--bv-aviso)" : "var(--bv-bom)" }}>
+          ● {erro ? "Erro" : parado ? "Parado" : "Activo"}
         </span>
       </div>
       <div className="hm-desc">{descricao}</div>
       <div className="hm-eq">{money(r.equity)}</div>
       <div className="hm-ret" style={{ color: corRet }}>
-        {pct(r.retorno)} <span>· {r.equity - r.capital >= 0 ? "+" : ""}{(r.equity - r.capital).toFixed(2)} desde o início</span>
+        {pct(r.retorno)} <span>({r.equity - r.capital >= 0 ? "+" : "−"}{Math.abs(r.equity - r.capital).toFixed(2).replace(".", ",")} $) desde o início</span>
       </div>
       <div className="hm-spark">
         {mounted && r.serie.length > 1 && (
@@ -167,19 +167,19 @@ function BotEntry({
             <LineChart data={r.serie} margin={{ top: 4, right: 0, left: 0, bottom: 4 }}>
               <YAxis hide domain={domain} />
               <ReferenceLine y={0} stroke="#2a2a2a" strokeDasharray="3 3" />
-              <Line type="monotone" dataKey="v" stroke={cor} strokeWidth={1.6} dot={false} isAnimationActive={false} />
+              <Line type="linear" dataKey="v" stroke={cor} strokeWidth={1.6} dot={false} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         )}
       </div>
       <div className="hm-meta">
         {r.detalhe.map((d, i) => <span key={i}>{d}</span>)}
-        <span style={{ color: parado ? "#fab219" : undefined }}>
-          {r.horas == null ? "SEM REGISTOS" : `ÚLTIMO REGISTO HÁ ${tempoRelativo(r.horas)}`}
+        <span style={{ color: parado ? "var(--bv-aviso)" : undefined }}>
+          {r.horas == null ? "Sem registos" : `Último registo há ${tempoRelativo(r.horas).toLowerCase()}`}
         </span>
       </div>
       {erro && <div className="hm-err">{erro}</div>}
-      <div className="hm-open">ABRIR DASHBOARD →</div>
+      <div className="hm-open">Abrir →</div>
     </a>
   );
 }
