@@ -926,3 +926,8 @@ body {
   .lua-titulo { font-size: 16px; }
   .lua-relogio { font-size: 22px; }
 }
+
+/* ERG em observação */
+.obs-nota { margin: 12px 0 0; font-size: 13px; line-height: 1.5; color: var(--bv-mudo); }
+.obs-nota b.bom { color: var(--bv-bom); font-weight: 600; }
+.obs-nota b.mau { color: var(--bv-mau); font-weight: 600; }

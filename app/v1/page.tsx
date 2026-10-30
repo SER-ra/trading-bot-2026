@@ -6,15 +6,28 @@ import GraficoMedias, { type Vela } from "../../components/GraficoMedias";
 import PainelLua, { condicoesCumpridas } from "../../components/PainelLua";
 import Estrelas from "../../components/Estrelas";
 import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, moedasDoDia, resumo, serieRetorno } from "../../lib/selene";
-import { comSinal, dataHora, dinheiro, haQuanto, lado, percent, preco, tom } from "../../lib/formato";
+import { comSinal, data, dataHora, dinheiro, haQuanto, lado, percent, preco, tom } from "../../lib/formato";
+
+interface Observacao {
+  erro?: string;
+  velas: Vela[];
+  eventos: { t: number; tipo: "entrada" | "saida"; preco: number }[];
+  dentro: boolean;
+  desde: number | null;
+  retornoRegra: number;
+  retornoGuardar: number | null;
+  custoPorOperacao: number;
+}
 
 export default function SeleneV1() {
   const [dados, setDados] = useState<SeleneData | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [velas, setVelas] = useState<Record<string, Vela[] | { erro: string }>>({});
+  const [obs, setObs] = useState<Observacao | null>(null);
 
   useEffect(() => {
     fetch("/api/velas").then((r) => r.json()).then(setVelas).catch(() => {});
+    fetch("/api/observacao").then((r) => r.json()).then(setObs).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -55,6 +68,35 @@ export default function SeleneV1() {
     };
   });
 
+  // Ergo: só observação, fora da carteira e da lua
+  if (obs && !obs.erro && obs.velas?.length) {
+    const u = obs.velas[obs.velas.length - 1];
+    const ult = obs.eventos.at(-1);
+    const sinal = ult
+      ? `${ult.tipo === "entrada" ? "Entraria" : "Sairia"} a ${data(ult.t)} ($${preco(ult.preco)})`
+      : "Nenhum sinal no último ano";
+    activos.push({
+      nome: "ERG",
+      valor: `$${preco(u.preco)}`,
+      linha2: obs.dentro ? `Regra: estaria comprada · ${sinal}` : `Regra: estaria fora · ${sinal}`,
+      tom: "neutro",
+      etiqueta: "Em observação",
+      etiquetaActiva: false,
+      extra: (
+        <>
+          <GraficoMedias velas={obs.velas} />
+          <p className="obs-nota">
+            Teste sem dinheiro. Desde {obs.desde ? data(obs.desde) : "—"}, a mesma regra teria dado{" "}
+            <b className={obs.retornoRegra >= 0 ? "bom" : "mau"}>{percent(obs.retornoRegra)}</b>
+            {obs.retornoGuardar != null && <> contra <b className={obs.retornoGuardar >= 0 ? "bom" : "mau"}>{percent(obs.retornoGuardar)}</b> a guardar ERG</>}
+            {" "}({(() => { const n = obs.eventos.filter((e) => e.tipo === "entrada").length; return `${n} ${n === 1 ? "entrada" : "entradas"}`; })()}, já com {String(obs.custoPorOperacao).replace(".", ",")}% de custo por operação).
+            Preço agregado do CoinGecko; na DEX (Spectrum) a liquidez é pequena e o preço real pode diferir.
+          </p>
+        </>
+      ),
+    });
+  }
+
   return (
     <BotView
       fundo={<Estrelas />}
@@ -90,7 +132,7 @@ export default function SeleneV1() {
         ],
       }}
       activosTitulo="Moedas"
-      activosNota={`${r.ultimo?.vela_sinal ? `Decisão tomada com o fecho do dia ${r.ultimo.vela_sinal.slice(8, 10)}/${r.ultimo.vela_sinal.slice(5, 7)}. ` : ""}Gráficos dos últimos 5 meses (fecho diário, Kraken). A lista mostra o que falta para uma tendência de subida.`}
+      activosNota={`${r.ultimo?.vela_sinal ? `Decisão tomada com o fecho do dia ${r.ultimo.vela_sinal.slice(8, 10)}/${r.ultimo.vela_sinal.slice(5, 7)}. ` : ""}Gráficos dos últimos 5 meses (fecho diário, Kraken; ERG via CoinGecko). A lista mostra o que falta para uma tendência de subida.`}
       activos={activos}
       activosLargos
       operacoes={ops.map((o) => ({

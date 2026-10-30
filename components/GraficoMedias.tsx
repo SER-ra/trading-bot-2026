@@ -12,7 +12,7 @@ export interface Vela {
 }
 
 const CORES = { preco: "#ecebe7", ma50: "#5aa9ff", ma100: "#b08cff", ma200: "#ff8a4c" };
-const fmt = (n: number) => n.toLocaleString("pt-PT", { maximumFractionDigits: n < 1000 ? 2 : 0 });
+const fmt = (n: number) => n.toLocaleString("pt-PT", { maximumFractionDigits: n < 1 ? 4 : n < 1000 ? 2 : 0 });
 const fmtData = new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
 const pct = (n: number) => `${Math.abs(n).toFixed(1).replace(".", ",")}%`;
 
