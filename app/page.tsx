@@ -12,6 +12,7 @@ import {
   paddedDomain,
   resolveBots,
 } from "../lib/dashboard";
+import Estrelas from "../components/Estrelas";
 import { fetchEquityHistory, fetchTrades } from "../lib/queries";
 import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, resumo, serieRetorno, tempoRelativo } from "../lib/selene";
 
@@ -98,7 +99,8 @@ export default function Home() {
   }, [equity, trades]);
 
   return (
-    <div className="bv-root hm-root" style={{ ["--bv-cor" as string]: "#e9e4d4" }}>
+    <div className="bv-root hm-root com-fundo" style={{ ["--bv-cor" as string]: "#e9e4d4" }}>
+      <Estrelas intensidade={0.15} />
       <div className="hm-shell">
         <header className="hm-head">
           <div className="hm-moon" aria-hidden />

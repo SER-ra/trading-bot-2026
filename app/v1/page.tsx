@@ -6,39 +6,16 @@ import GraficoMedias, { type Vela } from "../../components/GraficoMedias";
 import PainelLua, { condicoesCumpridas } from "../../components/PainelLua";
 import Estrelas from "../../components/Estrelas";
 import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, moedasDoDia, resumo, serieRetorno } from "../../lib/selene";
-import { MiniCurva } from "../../components/BotView";
-import { comSinal, data, dataHora, dinheiro, haQuanto, lado, percent, preco, tom } from "../../lib/formato";
+import { comSinal, dataHora, dinheiro, haQuanto, lado, percent, preco, tom } from "../../lib/formato";
 
-interface Observacao {
-  erro?: string;
-  velas: Vela[];
-  eventos: { t: number; tipo: "entrada" | "saida"; preco: number }[];
-  dentro: boolean;
-  desde: number | null;
-  retornoRegra: number;
-  retornoGuardar: number | null;
-  custoPorOperacao: number;
-  simulacao?: {
-    arranque: number;
-    capital: number;
-    valor: number;
-    dentro: boolean;
-    eventos: { t: number; tipo: "entrada" | "saida"; preco: number }[];
-    serie: { t: number; valor: number }[];
-    guardar: number;
-    ultimoFecho: number;
-  };
-}
 
 export default function SeleneV1() {
   const [dados, setDados] = useState<SeleneData | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [velas, setVelas] = useState<Record<string, Vela[] | { erro: string }>>({});
-  const [obs, setObs] = useState<Observacao | null>(null);
 
   useEffect(() => {
     fetch("/api/velas").then((r) => r.json()).then(setVelas).catch(() => {});
-    fetch("/api/observacao").then((r) => r.json()).then(setObs).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -79,35 +56,6 @@ export default function SeleneV1() {
     };
   });
 
-  // Ergo: só observação, fora da carteira e da lua
-  if (obs && !obs.erro && obs.velas?.length) {
-    const u = obs.velas[obs.velas.length - 1];
-    const ult = obs.eventos.at(-1);
-    const sinal = ult
-      ? `${ult.tipo === "entrada" ? "Entraria" : "Sairia"} a ${data(ult.t)} ($${preco(ult.preco)})`
-      : "Nenhum sinal no último ano";
-    activos.push({
-      nome: "ERG",
-      valor: `$${preco(u.preco)}`,
-      linha2: obs.dentro ? `Regra: estaria comprada · ${sinal}` : `Regra: estaria fora · ${sinal}`,
-      tom: "neutro",
-      etiqueta: "Em observação",
-      etiquetaActiva: false,
-      extra: (
-        <>
-          {obs.simulacao && <SimulacaoErgo s={obs.simulacao} />}
-          <GraficoMedias velas={obs.velas} />
-          <p className="obs-nota">
-            Teste sem dinheiro. Desde {obs.desde ? data(obs.desde) : "—"}, com a mesma regra 100 $ teriam passado a{" "}<b className={obs.retornoRegra >= 0 ? "bom" : "mau"}>${dinheiro(100 * (1 + obs.retornoRegra / 100))}</b>{" "}(
-            {percent(obs.retornoRegra)})
-            {obs.retornoGuardar != null && <> contra ${dinheiro(100 * (1 + obs.retornoGuardar / 100))} a guardar ERG</>}
-            {" "}({(() => { const n = obs.eventos.filter((e) => e.tipo === "entrada").length; return `${n} ${n === 1 ? "entrada" : "entradas"}`; })()}, já com {String(obs.custoPorOperacao).replace(".", ",")}% de custo por operação).
-            Preço agregado do CoinGecko; na DEX (Spectrum) a liquidez é pequena e o preço real pode diferir.
-          </p>
-        </>
-      ),
-    });
-  }
 
   const progresso = Object.entries(velas)
     .filter((e): e is [string, Vela[]] => Array.isArray(e[1]) && e[1].length > 0)
@@ -142,7 +90,7 @@ export default function SeleneV1() {
         ],
       }}
       activosTitulo="Moedas"
-      activosNota={`${r.ultimo?.vela_sinal ? `Decisão tomada com o fecho do dia ${r.ultimo.vela_sinal.slice(8, 10)}/${r.ultimo.vela_sinal.slice(5, 7)}. ` : ""}Gráficos dos últimos 5 meses (fecho diário, Kraken; ERG via CoinGecko). A lista mostra o que falta para uma tendência de subida.`}
+      activosNota={`${r.ultimo?.vela_sinal ? `Decisão tomada com o fecho do dia ${r.ultimo.vela_sinal.slice(8, 10)}/${r.ultimo.vela_sinal.slice(5, 7)}. ` : ""}Gráficos dos últimos 5 meses (fecho diário, Kraken). A lista mostra o que falta para uma tendência de subida.`}
       activos={activos}
       activosLargos
       operacoes={ops.map((o) => ({
@@ -160,24 +108,3 @@ export default function SeleneV1() {
   );
 }
 
-/** Carteira de teste de 100 $ em ERG, recalculada a cada fecho diário a partir do arranque. */
-function SimulacaoErgo({ s }: { s: NonNullable<Observacao["simulacao"]> }) {
-  const res = s.valor - s.capital;
-  const vsGuardar = s.valor - s.guardar;
-  return (
-    <div className="obs-sim">
-      <div className="obs-sim-top">
-        <span className="bv-rotulo">Carteira de teste · desde {data(s.arranque)}</span>
-        <span className={`bv-tag ${s.dentro ? "on" : ""}`}>{s.dentro ? "Comprado" : "Fora"}</span>
-      </div>
-      <div className="obs-sim-valor">
-        ${dinheiro(s.valor)} <small style={{ color: res > 0.005 ? "var(--bv-bom)" : res < -0.005 ? "var(--bv-mau)" : "var(--bv-mudo)" }}>{comSinal(res)} $ ({percent((res / s.capital) * 100)})</small>
-      </div>
-      <div className="obs-sim-l2">
-        Começou com ${dinheiro(s.capital)}. Guardar ERG daria ${dinheiro(s.guardar)} ({vsGuardar >= 0 ? "a regra vai à frente" : "guardar vai à frente"}).
-        {" "}{s.eventos.length ? `${s.eventos.length} ${s.eventos.length === 1 ? "operação" : "operações"}` : "Ainda sem operações"} · último fecho {data(s.ultimoFecho)}.
-      </div>
-      {s.serie.length > 1 && <MiniCurva valores={s.serie.map((p) => p.valor)} cor="#e9e4d4" />}
-    </div>
-  );
-}
