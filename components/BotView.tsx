@@ -62,6 +62,7 @@ export interface BotViewProps {
   grafico: { titulo: string; nota?: string; dados: Array<Record<string, number | string | null>>; series: SerieGrafico[] };
   activosTitulo: string;
   activosNota?: string;
+  activosLargos?: boolean;
   activos: Activo[];
   operacoes: Operacao[];
   semOperacoes: string;
@@ -174,7 +175,7 @@ export default function BotView(p: BotViewProps) {
         <section className="bv-card">
           <div className="bv-sec-head"><h2>{p.activosTitulo}</h2></div>
           {p.activosNota && <p className="bv-nota">{p.activosNota}</p>}
-          <div className="bv-activos">
+          <div className={`bv-activos${p.activosLargos ? " largos" : ""}`}>
             {p.activos.map((a) => (
               <div key={a.nome} className="bv-activo">
                 <div className="bv-activo-top">

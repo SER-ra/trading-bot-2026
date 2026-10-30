@@ -2,12 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import BotView, { BarraMedias, type Activo, type Estado } from "../../components/BotView";
+import GraficoMedias, { type Vela } from "../../components/GraficoMedias";
 import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, moedasDoDia, resumo, serieRetorno } from "../../lib/selene";
 import { comSinal, dataHora, dinheiro, haQuanto, lado, percent, preco, tom } from "../../lib/formato";
 
 export default function SeleneV1() {
   const [dados, setDados] = useState<SeleneData | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [velas, setVelas] = useState<Record<string, Vela[] | { erro: string }>>({});
+
+  useEffect(() => {
+    fetch("/api/velas").then((r) => r.json()).then(setVelas).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const carregar = () =>
@@ -41,7 +47,9 @@ export default function SeleneV1() {
       linha2: dentro ? `Investido: $${dinheiro(m.actual_usd)}` : "Sem posição",
       etiqueta: dentro ? "Comprado" : "Fora",
       etiquetaActiva: dentro,
-      extra: <BarraMedias preco={Number(m.preco)} medias={[Number(m.ma50), Number(m.ma100), Number(m.ma200)]} cor={SELENE_V1_COLOR} />,
+      extra: Array.isArray(velas[m.moeda]) && (velas[m.moeda] as Vela[]).length > 0
+        ? <GraficoMedias velas={velas[m.moeda] as Vela[]} />
+        : <BarraMedias preco={Number(m.preco)} medias={[Number(m.ma50), Number(m.ma100), Number(m.ma200)]} cor={SELENE_V1_COLOR} />,
     };
   });
 
@@ -72,8 +80,9 @@ export default function SeleneV1() {
         ],
       }}
       activosTitulo="Moedas"
-      activosNota={r.ultimo?.vela_sinal ? `Decisão tomada com o fecho do dia ${r.ultimo.vela_sinal.slice(8, 10)}/${r.ultimo.vela_sinal.slice(5, 7)}.` : undefined}
+      activosNota={`${r.ultimo?.vela_sinal ? `Decisão tomada com o fecho do dia ${r.ultimo.vela_sinal.slice(8, 10)}/${r.ultimo.vela_sinal.slice(5, 7)}. ` : ""}Gráficos dos últimos 5 meses (fecho diário, Kraken). A lista mostra o que falta para uma tendência de subida.`}
       activos={activos}
+      activosLargos
       operacoes={ops.map((o) => ({
         id: String(o.id),
         quando: dataHora(Date.parse(o.ts)),
