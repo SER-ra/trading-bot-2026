@@ -27,9 +27,9 @@ export async function GET() {
     if (!res.ok) throw new Error(`CoinGecko ${res.status}`);
     const json = await res.json();
 
-    // um ponto por dia (UTC); o último é o preço de agora e ainda não é um fecho
+    // o ponto das 00h00 UTC do dia D é o fecho do dia D-1; o último é o preço de agora e ainda não é um fecho
     const porDia = new Map<number, number>();
-    for (const [t, p] of json.prices as [number, number][]) porDia.set(Math.floor(t / 86_400_000) * 86_400_000, p);
+    for (const [t, p] of json.prices as [number, number][]) porDia.set(Math.floor(t / 86_400_000) * 86_400_000 - 86_400_000, p);
     const dias = [...porDia.entries()].sort((a, b) => a[0] - b[0]).slice(0, -1);
     const fecho = dias.map((d) => d[1]);
 
