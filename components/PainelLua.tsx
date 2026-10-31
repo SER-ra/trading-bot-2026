@@ -3,23 +3,31 @@
 import { useEffect, useState } from "react";
 import type { Vela } from "./GraficoMedias";
 
-/** As mesmas 4 condições da lista de cada moeda. */
+/** Regra da Selene_v1: quantas das 3 médias o preço já passou (3 = compra). */
 export function condicoesCumpridas(velas: Vela[]): number {
   const u = velas.at(-1);
   if (!u || u.ma50 == null || u.ma100 == null || u.ma200 == null) return 0;
-  return [u.preco > u.ma50, u.preco > u.ma100, u.preco > u.ma200, u.ma50 > u.ma100 && u.ma100 > u.ma200].filter(Boolean).length;
+  return [u.preco > u.ma50, u.preco > u.ma100, u.preco > u.ma200].filter(Boolean).length;
 }
 
-const FASES = ["Lua nova", "Crescente", "Quarto crescente", "Quase cheia", "Lua cheia"];
+/** Preço abaixo das 3 médias: a Selene_v1 aposta na descida. */
+export function emDescida(velas: Vela[]): boolean {
+  const u = velas.at(-1);
+  if (!u || u.ma50 == null || u.ma100 == null || u.ma200 == null) return false;
+  return u.preco < u.ma50 && u.preco < u.ma100 && u.preco < u.ma200;
+}
+
+const FASES = ["Lua nova", "Crescente", "Quase cheia", "Lua cheia"];
 
 /**
- * Lua cuja fase mostra quão perto a Selene_v1 está de entrar:
- * 0/4 condições = lua nova, 4/4 = lua cheia. Usa a moeda mais adiantada.
+ * Lua cuja fase mostra quão perto a Selene_v1 está de comprar:
+ * preço acima de 0 das 3 médias = lua nova, das 3 = lua cheia. Usa a moeda mais adiantada.
  */
-export default function PainelLua({ progresso }: { progresso: { moeda: string; n: number }[] }) {
+export default function PainelLua({ progresso }: { progresso: { moeda: string; n: number; descida?: boolean }[] }) {
   const melhor = progresso.reduce((a, b) => (b.n > a.n ? b : a), progresso[0] ?? { moeda: "—", n: 0 });
-  const fracao = melhor.n / 4;
-  const cheia = melhor.n === 4;
+  const fracao = melhor.n / 3;
+  const cheia = melhor.n === 3;
+  const descida = progresso.filter((p) => p.descida).map((p) => p.moeda);
 
   return (
     <section className={`lua-painel${cheia ? " cheia" : ""}`}>
@@ -29,16 +37,20 @@ export default function PainelLua({ progresso }: { progresso: { moeda: string; n
       <div className="lua-texto">
         <div className="lua-fase">{FASES[melhor.n]}</div>
         <div className="lua-titulo">
-          {cheia ? `${melhor.moeda} pronta: tendência de subida completa` : progresso.length ? `Mais perto de entrar: ${melhor.moeda}` : "A ler o mercado…"}
+          {cheia
+            ? `${melhor.moeda}: sinal de compra, preço acima das 3 médias`
+            : descida.length
+              ? `${descida.join(" e ")}: abaixo das 3 médias, a Selene aposta na descida`
+              : progresso.length ? `Mais perto de comprar: ${melhor.moeda}` : "A ler o mercado…"}
         </div>
         <div className="lua-moedas">
           {progresso.map((p) => (
-            <div key={p.moeda} className="lua-moeda">
+            <div key={p.moeda} className={`lua-moeda${p.descida ? " descida" : ""}`}>
               <span>{p.moeda}</span>
               <span className="lua-pontos">
-                {[0, 1, 2, 3].map((i) => <i key={i} className={i < p.n ? "on" : ""} />)}
+                {[0, 1, 2].map((i) => <i key={i} className={i < p.n ? "on" : ""} />)}
               </span>
-              <span className="lua-n">{p.n}/4</span>
+              <span className="lua-n">{p.descida ? "descida" : `${p.n}/3`}</span>
             </div>
           ))}
         </div>

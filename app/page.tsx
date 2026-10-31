@@ -116,7 +116,7 @@ export default function Home() {
             nome="Selene_v1"
             motor="Claude"
             cor={SELENE_V1_COLOR}
-            descricao="Segue a tendência diária de BTC e ETH. Compra ou fica fora, sem alavancagem."
+            descricao="Segue a tendência diária de BTC e ETH. Compra, aposta na descida ou fica fora, sem alavancagem."
             r={v1}
             erro={falhas.v1}
             mounted={mounted}

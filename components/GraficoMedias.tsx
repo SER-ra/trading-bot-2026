@@ -18,7 +18,7 @@ const pct = (n: number) => `${Math.abs(n).toFixed(1).replace(".", ",")}%`;
 
 /**
  * Preço e médias de 50/100/200 dias nos últimos meses, mais uma lista simples
- * das condições de tendência de subida e quanto falta para as cumprir.
+ * das condições da regra da Selene_v1 e quanto falta para comprar ou para apostar na descida.
  */
 export default function GraficoMedias({ velas }: { velas: Vela[] }) {
   const [montado, setMontado] = useState(false);
@@ -31,22 +31,22 @@ export default function GraficoMedias({ velas }: { velas: Vela[] }) {
   const m100 = u.ma100 ?? NaN;
   const m200 = u.ma200 ?? NaN;
 
+  // regra da Selene_v1: compra com o fecho acima das 3 médias, aposta na descida abaixo das 3, fora no resto
   const condicoes = [
     { ok: p > m50, txt: "Preço acima da média de 50 dias", falta: (m50 / p - 1) * 100 },
     { ok: p > m100, txt: "Preço acima da média de 100 dias", falta: (m100 / p - 1) * 100 },
     { ok: p > m200, txt: "Preço acima da média de 200 dias", falta: (m200 / p - 1) * 100 },
-    { ok: m50 > m100 && m100 > m200, txt: "Médias por ordem (50 > 100 > 200)", falta: null as number | null },
   ];
-  const cumpridas = condicoes.filter((c) => c.ok).length;
-  const precoAcima = condicoes.slice(0, 3).filter((c) => c.ok).length;
-  const maiorMedia = Math.max(m50, m100, m200);
-  const faltaTotal = (maiorMedia / p - 1) * 100;
+  const acima = condicoes.filter((c) => c.ok).length;
+  const paraComprar = (Math.max(m50, m100, m200) / p - 1) * 100; // subir até passar a média mais alta
+  const paraDescida = (1 - Math.min(m50, m100, m200) / p) * 100; // cair até ficar abaixo da média mais baixa
 
   let leitura: { txt: string; cor: string };
-  if (cumpridas === 4) leitura = { txt: "Tendência de subida completa", cor: "var(--bv-bom)" };
-  else if (precoAcima === 3) leitura = { txt: "Preço acima de tudo — falta as médias alinharem", cor: "var(--bv-aviso)" };
-  else if (faltaTotal <= 3) leitura = { txt: `Perto: faltam ${pct(faltaTotal)} para passar todas as médias`, cor: "var(--bv-aviso)" };
-  else leitura = { txt: `Longe: faltam ${pct(faltaTotal)} para passar todas as médias`, cor: "var(--bv-mudo)" };
+  if (acima === 3) leitura = { txt: "Sinal de compra: preço acima das 3 médias", cor: "var(--bv-bom)" };
+  else if (paraDescida <= 0) leitura = { txt: "Sinal de descida: preço abaixo das 3 médias", cor: "var(--bv-mau)" };
+  else if (Math.min(paraComprar, paraDescida) <= 3)
+    leitura = { txt: paraComprar <= paraDescida ? `Perto de comprar: faltam ${pct(paraComprar)}` : `Perto da descida: faltam ${pct(paraDescida)}`, cor: "var(--bv-aviso)" };
+  else leitura = { txt: "Fora: preço entre as médias", cor: "var(--bv-mudo)" };
 
   const valores = velas.flatMap((v) => [v.preco, v.ma50, v.ma100, v.ma200]).filter((x): x is number => x != null);
   const lo = Math.min(...valores);
@@ -90,6 +90,12 @@ export default function GraficoMedias({ velas }: { velas: Vela[] }) {
           </li>
         ))}
       </ul>
+      {acima < 3 && paraDescida > 0 && (
+        <div className="gm-lados">
+          <span>Para comprar: <b className="bom">subir {pct(paraComprar)}</b></span>
+          <span>Para apostar na descida: <b className="mau">cair {pct(paraDescida)}</b></span>
+        </div>
+      )}
     </div>
   );
 }

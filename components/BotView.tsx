@@ -35,6 +35,7 @@ export interface Activo {
   tom?: "bom" | "mau" | "neutro";
   etiqueta: string; // "Fora", "Comprado", "Long aberto"...
   etiquetaActiva?: boolean;
+  etiquetaMau?: boolean; // posição na descida: etiqueta a vermelho
   extra?: React.ReactNode;
 }
 
@@ -185,7 +186,7 @@ export default function BotView(p: BotViewProps) {
               <div key={a.nome} className="bv-activo">
                 <div className="bv-activo-top">
                   <span className="bv-activo-nome">{a.nome}</span>
-                  <span className={`bv-tag ${a.etiquetaActiva ? "on" : ""}`}>{a.etiqueta}</span>
+                  <span className={`bv-tag ${a.etiquetaActiva ? "on" : ""}${a.etiquetaMau ? " mau" : ""}`}>{a.etiqueta}</span>
                 </div>
                 <div className="bv-activo-valor">{a.valor}</div>
                 <div className="bv-activo-l2" style={{ color: TOM[a.tom ?? "neutro"] }}>{a.linha2}</div>

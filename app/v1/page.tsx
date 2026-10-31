@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import BotView, { BarraMedias, type Activo, type Estado } from "../../components/BotView";
 import GraficoMedias, { type Vela } from "../../components/GraficoMedias";
-import PainelLua, { condicoesCumpridas } from "../../components/PainelLua";
+import PainelLua, { condicoesCumpridas, emDescida } from "../../components/PainelLua";
 import Estrelas from "../../components/Estrelas";
 import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, moedasDoDia, resumo, serieRetorno } from "../../lib/selene";
 import { comSinal, dataHora, dinheiro, haQuanto, lado, percent, preco, tom } from "../../lib/formato";
@@ -44,12 +44,14 @@ export default function SeleneV1() {
 
   const activos: Activo[] = moedas.map((m) => {
     const dentro = /dentro|compr|long/i.test(m.sinal ?? "");
+    const vendido = /vend|short/i.test(m.sinal ?? "");
     return {
       nome: m.moeda,
       valor: `$${preco(m.preco)}`,
-      linha2: dentro ? `Investido: $${dinheiro(m.actual_usd)}` : "Sem posição",
-      etiqueta: dentro ? "Comprado" : "Fora",
-      etiquetaActiva: dentro,
+      linha2: dentro ? `Investido: $${dinheiro(m.actual_usd)}` : vendido ? `Aposta na descida: $${dinheiro(Math.abs(Number(m.actual_usd)))}` : "Sem posição",
+      etiqueta: dentro ? "Comprado" : vendido ? "Na descida" : "Fora",
+      etiquetaActiva: dentro || vendido,
+      etiquetaMau: vendido,
       extra: Array.isArray(velas[m.moeda]) && (velas[m.moeda] as Vela[]).length > 0
         ? <GraficoMedias velas={velas[m.moeda] as Vela[]} />
         : <BarraMedias preco={Number(m.preco)} medias={[Number(m.ma50), Number(m.ma100), Number(m.ma200)]} cor={SELENE_V1_COLOR} />,
@@ -59,16 +61,16 @@ export default function SeleneV1() {
 
   const progresso = Object.entries(velas)
     .filter((e): e is [string, Vela[]] => Array.isArray(e[1]) && e[1].length > 0)
-    .map(([moeda, v]) => ({ moeda, n: condicoesCumpridas(v) }));
+    .map(([moeda, v]) => ({ moeda, n: condicoesCumpridas(v), descida: emDescida(v) }));
 
   return (
     <BotView
-      fundo={<Estrelas intensidade={Math.max(0, ...progresso.map((p) => p.n)) / 4} />}
+      fundo={<Estrelas intensidade={Math.max(0, ...progresso.map((p) => p.n)) / 3} />}
       topo={<PainelLua progresso={progresso} />}
       nome="Selene_v1"
       motor="Claude"
       cor={SELENE_V1_COLOR}
-      explicacao="Segue a tendência diária de BTC e ETH. Compra quando o preço está acima das médias móveis e fica fora quando não está. Sem alavancagem, decide uma vez por dia."
+      explicacao="Segue a tendência diária de BTC e ETH. Compra quando o preço fecha acima das médias de 50, 100 e 200 dias, aposta na descida quando fecha abaixo das três e fica fora no resto. Sem alavancagem, decide uma vez por dia."
       estado={estado}
       moeda="USD"
       valorActual={`$${dinheiro(r.equity)}`}
@@ -90,7 +92,7 @@ export default function SeleneV1() {
         ],
       }}
       activosTitulo="Moedas"
-      activosNota={`${r.ultimo?.vela_sinal ? `Decisão tomada com o fecho do dia ${r.ultimo.vela_sinal.slice(8, 10)}/${r.ultimo.vela_sinal.slice(5, 7)}. ` : ""}Gráficos dos últimos 5 meses (fecho diário, Kraken). A lista mostra o que falta para uma tendência de subida.`}
+      activosNota={`${r.ultimo?.vela_sinal ? `Decisão tomada com o fecho do dia ${r.ultimo.vela_sinal.slice(8, 10)}/${r.ultimo.vela_sinal.slice(5, 7)}. ` : ""}Gráficos dos últimos 5 meses (fecho diário, Kraken). A lista mostra quanto falta para comprar ou para apostar na descida.`}
       activos={activos}
       activosLargos
       operacoes={ops.map((o) => ({

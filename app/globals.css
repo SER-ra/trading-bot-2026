@@ -970,3 +970,9 @@ body {
 .bv-root.com-fundo .bv-card, .bv-root.com-fundo .lua-painel, .hm-root.com-fundo .hm-card { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
 .bv-root.com-fundo .bv-resumo { border-top-color: var(--bv-cor); }
 .hm-root.com-fundo .hm-card, .hm-root.com-fundo .hm-card:hover { border-top-color: var(--hm-accent); }
+.gm-lados { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--bv-linha); font-size: 13px; color: var(--bv-tinta2); }
+.gm-lados b { font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 600; }
+.gm-lados b.bom { color: var(--bv-bom); }
+.gm-lados b.mau { color: var(--bv-mau); }
+.lua-moeda.descida .lua-n { color: var(--bv-mau); }
+.bv-tag.on.mau { color: var(--bv-mau); border-color: color-mix(in srgb, var(--bv-mau) 40%, transparent); }
