@@ -976,3 +976,4 @@ body {
 .gm-lados b.mau { color: var(--bv-mau); }
 .lua-moeda.descida .lua-n { color: var(--bv-mau); }
 .bv-tag.on.mau { color: var(--bv-mau); border-color: color-mix(in srgb, var(--bv-mau) 40%, transparent); }
+.v2-bot-info { font-size: 12px; color: var(--bv-mudo); margin-top: 4px; }

@@ -14,6 +14,7 @@ import {
 } from "../lib/dashboard";
 import Estrelas from "../components/Estrelas";
 import { fetchEquityHistory, fetchTrades } from "../lib/queries";
+import { estadoBots } from "../lib/estadoBots";
 import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, resumo, serieRetorno, tempoRelativo } from "../lib/selene";
 
 const V2_COLOR = "#ff8a4c";
@@ -27,6 +28,7 @@ interface Resumo {
   retorno: number;
   horas: number | null;
   limite: number;
+  activos?: { n: number; total: number }; // bots activos (só Selene_v2)
   detalhe: string[];
   serie: { i: number; v: number }[];
 }
@@ -89,6 +91,7 @@ export default function Home() {
       retorno: cap ? (eq / cap - 1) * 100 : 0,
       horas: ultimo ? horasDesde(ultimo) : null,
       limite: 6,
+      activos: { n: estadoBots(equity, bots).filter((e) => e.activo).length, total: bots.length },
       detalhe: [
         `${bots.length} bots`,
         bots.map((b) => b.label).join(" · "),
@@ -146,7 +149,9 @@ function BotEntry({
 }: {
   href: string; nome: string; motor: string; cor: string; descricao: string; r: Resumo; erro?: string; mounted: boolean;
 }) {
-  const parado = r.horas != null && r.horas > r.limite;
+  const parado = r.activos ? r.activos.n === 0 : r.horas != null && r.horas > r.limite;
+  const parcial = !!r.activos && r.activos.n > 0 && r.activos.n < r.activos.total;
+  const contagem = r.activos ? ` · ${r.activos.n} de ${r.activos.total}` : "";
   const corRet = r.retorno > 0.0001 ? "var(--bv-bom)" : r.retorno < -0.0001 ? "var(--bv-mau)" : "var(--bv-tinta)";
   const domain = paddedDomain([...r.serie.map((p) => p.v), 0], 0.25);
   return (
@@ -154,8 +159,8 @@ function BotEntry({
       <div className="hm-card-top">
         <span className="hm-name">{nome}</span>
         <span className="hm-engine">{motor}</span>
-        <span className="hm-state" style={{ color: erro ? "var(--bv-mau)" : parado ? "var(--bv-aviso)" : "var(--bv-bom)" }}>
-          ● {erro ? "Erro" : parado ? "Parado" : "Activo"}
+        <span className="hm-state" style={{ color: erro ? "var(--bv-mau)" : parado || parcial ? "var(--bv-aviso)" : "var(--bv-bom)" }}>
+          ● {erro ? "Erro" : parado ? `Parado${contagem}` : `Activo${contagem}`}
         </span>
       </div>
       <div className="hm-desc">{descricao}</div>

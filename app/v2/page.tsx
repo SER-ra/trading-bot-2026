@@ -15,6 +15,7 @@ import {
   sortTradesNewest,
 } from "../../lib/dashboard";
 import { fetchEquityHistory, fetchTrades } from "../../lib/queries";
+import { estadoBots } from "../../lib/estadoBots";
 import { comSinal, dataHora, dinheiro, haQuanto, lado, percent, preco, tom } from "../../lib/formato";
 
 const COR_V2 = "#ff8a4c";
@@ -38,7 +39,9 @@ export default function SeleneV2() {
 
   const v = useMemo(() => {
     const reais = trades.filter((t) => !isTestTrade(t));
-    const bots = resolveBots(equity, reais).filter((b) => equity.some((p) => p.bot === b.id) || reais.some((t) => t.bot === b.id));
+    const bots = resolveBots(equity, reais);
+    const estados = estadoBots(equity, bots);
+    const nActivos = estados.filter((e) => e.activo).length;
     const capital = bots.reduce((s, b) => s + b.capital, 0);
     const actual = bots.reduce((s, b) => s + latestEquity(equity, b.id, b.capital), 0);
     const curva = buildEquityCurve(equity, bots);
@@ -70,18 +73,25 @@ export default function SeleneV2() {
       const eq = latestEquity(equity, b.id, b.capital);
       const pnl = eq - b.capital;
       const nAbertas = abertas.filter((t) => t.bot === b.id).length;
+      const st = estados.find((e) => e.id === b.id)!;
+      const quando = st.horas == null ? "sem registos" : `último registo ${haQuanto(st.horas)}`;
       return {
         nome: b.label,
         valor: `$${dinheiro(eq)}`,
         linha2: `${comSinal(pnl)} $ · ${percent((pnl / b.capital) * 100)}`,
         tom: tom(pnl),
-        etiqueta: nAbertas ? `${nAbertas} aberta${nAbertas > 1 ? "s" : ""}` : "Sem posição",
-        etiquetaActiva: nAbertas > 0,
-        extra: <MiniCurva valores={botEquitySeries(equity, b.id, b.capital)} cor={b.color} />,
+        etiqueta: st.activo ? "Activo" : "Parado",
+        etiquetaActiva: st.activo,
+        extra: (
+          <>
+            <div className="v2-bot-info">{nAbertas ? `${nAbertas} ${nAbertas > 1 ? "posições abertas" : "posição aberta"}` : "Sem posição"} · {quando}</div>
+            <MiniCurva valores={botEquitySeries(equity, b.id, b.capital)} cor={b.color} />
+          </>
+        ),
       };
     });
 
-    return { bots, capital, actual, serie, abertas, fechadas, ganhos, ultimo, pior, pnlHoje, activos, reais };
+    return { bots, nActivos, capital, actual, serie, abertas, fechadas, ganhos, ultimo, pior, pnlHoje, activos, reais };
   }, [equity, trades]);
 
   const horas = v.ultimo ? (Date.now() - v.ultimo) / HORA : null;
@@ -89,9 +99,9 @@ export default function SeleneV2() {
     ? { texto: "Erro", tipo: "erro", detalhe: erro }
     : !carregado || horas == null
       ? { texto: "A carregar", tipo: "aviso" }
-      : horas > 6
-        ? { texto: "Parado", tipo: "aviso", detalhe: `último registo ${haQuanto(horas)}` }
-        : { texto: "Activo · simulação", tipo: "ok", detalhe: `último registo ${haQuanto(horas)}` };
+      : v.nActivos === 0
+        ? { texto: `Parado · 0 de ${v.bots.length}`, tipo: "aviso", detalhe: `último registo ${haQuanto(horas)}` }
+        : { texto: `Activo · ${v.nActivos} de ${v.bots.length}`, tipo: v.nActivos === v.bots.length ? "ok" : "aviso", detalhe: `simulação · último registo ${haQuanto(horas)}` };
 
   const pnl = v.actual - v.capital;
 
