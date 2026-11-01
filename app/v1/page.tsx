@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import BotView, { BarraMedias, type Activo, type Estado } from "../../components/BotView";
 import GraficoMedias, { type Vela } from "../../components/GraficoMedias";
-import PainelLua, { condicoesCumpridas, emDescida } from "../../components/PainelLua";
+import PainelLua, { type ProgressoMoeda, condicoesCumpridas, emDescida, sinalMaisProximo } from "../../components/PainelLua";
 import Estrelas from "../../components/Estrelas";
 import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, moedasDoDia, resumo, serieRetorno } from "../../lib/selene";
 import { comSinal, dataHora, dinheiro, haQuanto, lado, percent, preco, tom } from "../../lib/formato";
@@ -59,13 +59,26 @@ export default function SeleneV1() {
   });
 
 
-  const progresso = Object.entries(velas)
+  const progresso: ProgressoMoeda[] = Object.entries(velas)
     .filter((e): e is [string, Vela[]] => Array.isArray(e[1]) && e[1].length > 0)
-    .map(([moeda, v]) => ({ moeda, n: condicoesCumpridas(v), descida: emDescida(v) }));
+    .map(([moeda, v]) => {
+      const u = v[v.length - 1];
+      const ms = [u.ma50, u.ma100, u.ma200].filter((x): x is number => x != null);
+      return {
+        moeda,
+        n: condicoesCumpridas(v),
+        descida: emDescida(v),
+        paraComprar: ms.length === 3 ? (Math.max(...ms) / u.preco - 1) * 100 : undefined,
+        paraVender: ms.length === 3 ? (1 - Math.min(...ms) / u.preco) * 100 : undefined,
+      };
+    });
+  // o céu anima-se à medida que alguma moeda se aproxima de um sinal (compra ou venda)
+  const distMin = Math.min(10, ...progresso.map((p) => sinalMaisProximo(p).dist));
+  const intensidade = Math.max(0, 1 - distMin / 10);
 
   return (
     <BotView
-      fundo={<Estrelas intensidade={Math.max(0, ...progresso.map((p) => p.n)) / 3} />}
+      fundo={<Estrelas intensidade={intensidade} />}
       topo={<PainelLua progresso={progresso} />}
       nome="Selene_v1"
       motor="Claude"

@@ -977,3 +977,27 @@ body {
 .lua-moeda.descida .lua-n { color: var(--bv-mau); }
 .bv-tag.on.mau { color: var(--bv-mau); border-color: color-mix(in srgb, var(--bv-mau) 40%, transparent); }
 .v2-bot-info { font-size: 12px; color: var(--bv-mudo); margin-top: 4px; }
+
+/* Uma lua por moeda */
+.lua-painel.luas { grid-template-columns: minmax(0, 1fr); }
+.luas-grelha { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 14px; }
+.lua-cartao { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 14px; align-items: center; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--bv-linha); background: rgba(10, 10, 14, 0.25); }
+.lua-cartao.compra { border-color: rgba(233, 228, 212, 0.45); box-shadow: 0 0 40px -12px rgba(233, 228, 212, 0.4); }
+.lua-cartao.compra .lua-svg { filter: drop-shadow(0 0 14px rgba(255, 250, 230, 0.55)); }
+.lua-cartao.venda { border-color: color-mix(in srgb, var(--bv-mau) 45%, transparent); box-shadow: 0 0 40px -14px color-mix(in srgb, var(--bv-mau) 50%, transparent); }
+.lua-mini .lua-svg { width: 78px; }
+.lua-moeda-nome { font-size: 16px; font-weight: 700; color: var(--bv-tinta); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.lua-fase-moeda { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--bv-mudo); }
+.lua-cartao .lua-pontos { margin-top: 6px; align-items: center; }
+.lua-cartao .lua-n { margin-left: 6px; }
+.lua-dist { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-size: 13px; color: var(--bv-mudo); }
+.lua-dist b { font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 600; }
+.lua-dist b.bom { color: var(--bv-bom); }
+.lua-dist b.mau { color: var(--bv-mau); }
+.lua-dist .perto { color: var(--bv-tinta); }
+.lua-dist .perto::after { content: " ← mais perto"; font-size: 11px; color: var(--bv-aviso); }
+@media (max-width: 720px) {
+  .lua-painel.luas { grid-template-columns: minmax(0, 1fr); }
+  .lua-cartao { grid-template-columns: 64px minmax(0, 1fr); }
+  .lua-mini .lua-svg { width: 64px; }
+}
