@@ -118,7 +118,8 @@ export async function GET() {
         custos: { comissoes, funding: fundingTotal },
         agente: agente ? { nome: agente.name as string, validoAte: n(agente.validUntil) } : null,
         sinais: moedas.filter((m) => m.dia === ultimoDia),
-        diaSinais: ultimoDia || null,
+        // dia do último fecho usado nos sinais (a corrida do dia N usa o fecho do dia N−1)
+        diaSinais: ((sb?.diario ?? []) as any[]).find((x) => x.dia === ultimoDia)?.vela_sinal ?? null,
         batimento: batimentos[batimentos.length - 1] ?? null,
         mids: { BTC: n(mids.BTC), ETH: n(mids.ETH) },
       },
