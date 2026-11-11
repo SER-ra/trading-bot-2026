@@ -7,13 +7,16 @@ import {
   type BotProfile,
   type EquityPoint,
   type Trade,
-  botEquitySeries,
+  botPnlSeries,
   buildEquityCurve,
+  buildPnlCurve,
   chartRows,
   axisTicks,
+  currentCapital,
   curveDomain,
   formatPnl,
   formatTime,
+  pnlDrawdown,
   isClosedTrade,
   isOpenTrade,
   isTestTrade,
@@ -108,22 +111,17 @@ export default function Dashboard() {
 
   const latest: Record<string, number> = {};
   bots.forEach((bot) => {
-    latest[bot.id] = latestEquity(equity, bot.id, bot.capital);
+    latest[bot.id] = latestEquity(equity, bot.id, currentCapital(bot));
   });
   const totalEquity = bots.reduce((sum, bot) => sum + latest[bot.id], 0);
-  const totalStart = bots.reduce((sum, bot) => sum + bot.capital, 0);
-  const totalPnl = totalEquity - totalStart;
+  const totalBase = bots.reduce((sum, bot) => sum + currentCapital(bot), 0);
+  const totalPnl = totalEquity - totalBase;
   const pnlColor = totalPnl >= 0 ? "#22c55e" : "#ef4444";
 
   const closedTrades = liveTrades.filter(isClosedTrade);
   const rate = winRate(liveTrades);
 
-  let peak = totalStart;
-  equity.forEach((point) => {
-    const value = Number(point.equity);
-    if (value > peak) peak = value;
-  });
-  const currentDD = peak > 0 ? ((peak - totalEquity) / peak) * 100 : 0;
+  const pnlCurve = useMemo(() => buildPnlCurve(equity, bots), [equity, bots]);
 
   const log = sortTradesNewest(liveTrades);
   const openTrades = log.filter(isOpenTrade);
@@ -132,20 +130,13 @@ export default function Dashboard() {
   const lossPnls = closedPnls.filter((value) => value < 0);
   const avgWin = winPnls.length ? winPnls.reduce((sum, value) => sum + value, 0) / winPnls.length : null;
   const avgLoss = lossPnls.length ? lossPnls.reduce((sum, value) => sum + value, 0) / lossPnls.length : null;
-  const totalSeries = curve.map((row) => {
-    let pnl = 0;
-    for (const bot of bots) {
-      const value = row.values[bot.id];
-      if (value == null) continue;
-      pnl += value - bot.capital;
-    }
-    return {
-      label: row.label,
-      total: pnl,
-      gain: pnl > 0 ? pnl : 0,
-      loss: pnl < 0 ? pnl : 0,
-    };
-  });
+  const totalSeries = pnlCurve.map((row) => ({
+    label: row.label,
+    total: row.total,
+    gain: row.total > 0 ? row.total : 0,
+    loss: row.total < 0 ? row.total : 0,
+  }));
+  const currentDD = pnlDrawdown(totalSeries.map((row) => row.total), totalBase);
   const totalDomain = paddedDomain(
     [...totalSeries.map((row) => row.total), 0],
     0.18
@@ -259,7 +250,7 @@ export default function Dashboard() {
         <div className="td-card td-funnel">
           <div className="td-chart-head">
             <div className="td-label">P&L TOTAL</div>
-            {curve.length > 0 && <div className="td-range">{curve[0].label} — {curve[curve.length - 1].label}</div>}
+            {pnlCurve.length > 0 && <div className="td-range">{pnlCurve[0].label} — {pnlCurve[pnlCurve.length - 1].label}</div>}
           </div>
           <div className="td-chart">
             {mounted && totalSeries.length > 0 && (
@@ -311,9 +302,10 @@ function AllocationDonut({
   total: number;
 }) {
   const slices: TorusSlice[] = bots.map((bot) => {
-    const equity = latest[bot.id] ?? bot.capital;
+    const base = currentCapital(bot);
+    const equity = latest[bot.id] ?? base;
     const share = total > 0 ? (equity / total) * 100 : 0;
-    return { id: bot.id, label: bot.label, color: bot.color, equity, pnl: equity - bot.capital, share };
+    return { id: bot.id, label: bot.label, color: bot.color, equity, pnl: equity - base, share };
   });
   const [Torus, setTorus] = useState<typeof import("../components/ParticleTorus").default | null>(null);
   useEffect(() => {
@@ -346,10 +338,10 @@ function BotCard({
   trades: Trade[];
 }) {
   const mounted = useMounted();
-  const series = botEquitySeries(points, bot.id, bot.capital).map((value) => value - bot.capital);
+  const series = botPnlSeries(points, bot.id, bot.capital);
   const data = series.map((value, index) => ({ i: index, equity: value }));
   const domain = paddedDomain([...series, 0], 0.35);
-  const pnl = equity - bot.capital;
+  const pnl = equity - currentCapital(bot);
   const botTrades = trades.filter((trade) => trade.bot === bot.id);
   const closed = botTrades.filter(isClosedTrade);
   const open = botTrades.filter(isOpenTrade);
