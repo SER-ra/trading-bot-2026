@@ -154,7 +154,7 @@ export default function Home() {
           <BotEntry
             href="/v1/real"
             nome="Selene_v1 REAL"
-            motor="Claude · dinheiro real"
+            motor="Dinheiro real"
             cor={SELENE_REAL_COLOR}
             descricao="A mesma regra, com dinheiro verdadeiro na Hyperliquid. Valores lidos da corretora ao vivo."
             r={vReal}
