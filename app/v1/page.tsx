@@ -5,7 +5,9 @@ import BotView, { BarraMedias, type Activo, type Estado } from "../../components
 import GraficoMedias, { type Vela } from "../../components/GraficoMedias";
 import PainelLua, { type ProgressoMoeda, condicoesCumpridas, emDescida, sinalMaisProximo } from "../../components/PainelLua";
 import Estrelas from "../../components/Estrelas";
-import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, moedasDoDia, resumo, serieRetorno } from "../../lib/selene";
+import { GLOSSARIO_BASE, Glossario, Porque, Posicoes, Saude, type Ficha } from "../../components/Explicacoes";
+import { explicar, type Explicacao } from "../../lib/explicar";
+import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, moedasDoDia, posicoesSimuladas, resumo, serieRetorno } from "../../lib/selene";
 import { comSinal, dataHora, dinheiro, haQuanto, lado, percent, preco, tom } from "../../lib/formato";
 
 
@@ -32,6 +34,25 @@ export default function SeleneV1() {
   const serie = useMemo(() => serieRetorno(dados), [dados]);
   const moedas = useMemo(() => moedasDoDia(dados), [dados]);
   const ops = useMemo(() => [...(dados?.operacoes ?? [])].sort((a, b) => b.ts.localeCompare(a.ts)), [dados]);
+
+  const explicacoes = useMemo(() => moedas.map((m) => explicar(m)).filter((e): e is Explicacao => e != null), [moedas]);
+  const posicoes = useMemo(() => posicoesSimuladas(dados), [dados]);
+  const fichas: Ficha[] = moedas.filter((m) => Math.abs(posicoes[m.moeda]?.qtd ?? 0) > 1e-9).map((m) => {
+    const p = posicoes[m.moeda], px = Number(m.preco), res = p.qtd * (px - p.entrada), vendido = p.qtd < 0;
+    return {
+      titulo: m.moeda,
+      etiqueta: vendido ? "A apostar na descida" : "Comprado",
+      etiquetaMau: vendido,
+      linhas: [
+        { rotulo: "Tamanho", valor: `${Math.abs(p.qtd).toLocaleString("pt-PT", { maximumFractionDigits: 5 })} ${m.moeda} (${dinheiro(Math.abs(p.qtd) * px)} $)` },
+        { rotulo: "Preço de entrada", valor: `${dinheiro(p.entrada)} $` },
+        { rotulo: "Preço no último fecho", valor: `${dinheiro(px)} $`, nota: vendido ? "Ganha se descer abaixo do preço de entrada." : "Ganha se subir acima do preço de entrada." },
+        { rotulo: "Resultado em aberto", valor: `${comSinal(res)} $ (${percent(p.entrada ? (res / (Math.abs(p.qtd) * p.entrada)) * 100 : 0)})`, tom: tom(res), nota: "Sem contar comissões nem funding." },
+      ],
+    };
+  });
+  const bat = [...(dados?.batimentos ?? [])].filter((b) => b.instancia === "simulacao").at(-1);
+  const comissoes = (dados?.operacoes ?? []).reduce((s, o) => s + Number(o.comissao_usd ?? 0), 0);
 
   const horas = horasDesde(r.ultimoRegisto);
   const estado: Estado = erro
@@ -89,11 +110,30 @@ export default function SeleneV1() {
       valorActual={`$${dinheiro(r.equity)}`}
       resultado={{ pct: percent(r.retornoPct), valor: `${comSinal(r.pnl)} $`, tom: tom(r.pnl) }}
       numeros={[
-        { rotulo: "Hoje", valor: percent(Number(r.ultimo?.pnl_dia_pct ?? 0)), tom: tom(Number(r.ultimo?.pnl_dia_pct ?? 0)) },
-        { rotulo: "Pior queda", valor: percent(r.quedaMaxPct, 1), tom: r.quedaMaxPct < -0.01 ? "mau" : "neutro" },
-        { rotulo: "Investido", valor: `${Math.round(Number(r.ultimo?.exposicao_pct ?? 0))}%` },
-        { rotulo: "Operações", valor: String(ops.length) },
+        { rotulo: "Último dia", valor: percent(Number(r.ultimo?.pnl_dia_pct ?? 0)), tom: tom(Number(r.ultimo?.pnl_dia_pct ?? 0)), ajuda: "Variação entre as duas últimas corridas do bot." },
+        { rotulo: "Pior queda", valor: percent(r.quedaMaxPct, 1), tom: r.quedaMaxPct < -0.01 ? "mau" : "neutro", ajuda: "Maior descida desde o valor mais alto. No teste histórico chegou a −23%." },
+        { rotulo: "Investido", valor: `${Math.round(Number(r.ultimo?.exposicao_pct ?? 0))}%`, ajuda: "Parte da carteira em posições. O resto está parado em dólares." },
+        { rotulo: "Operações", valor: String(ops.length), ajuda: "Compras e vendas feitas pelo bot." },
       ]}
+      ligacaoExtra={{ href: "/v1/real", texto: "Ver a conta real →" }}
+      meio={<>
+        <Porque itens={explicacoes} nota={r.ultimo?.vela_sinal ? `Calculado com os preços de fecho até ${r.ultimo.vela_sinal.slice(8, 10)}/${r.ultimo.vela_sinal.slice(5, 7)}. A decisão seguinte é na próxima madrugada.` : undefined} />
+        <Posicoes fichas={fichas} vazio="Nenhuma posição aberta: a carteira está toda em dólares, à espera de um sinal." nota="Valores da última corrida do bot (uma vez por dia)." />
+      </>}
+      fim={<>
+        <Saude
+          titulo="Saúde do bot e custos"
+          linhas={[
+            bat
+              ? { rotulo: "Última corrida do bot", valor: `${bat.dia.slice(8, 10)}/${bat.dia.slice(5, 7)} às ${dataHora(Date.parse(bat.registado_em)).slice(-5)} · ${bat.estado === "ok" ? "correu bem" : bat.estado}`, tom: bat.estado === "ok" ? "bom" : "mau", nota: "Corre todos os dias à 01h10 (Lisboa) e, se falhar, repete de hora a hora até às 06h10." }
+              : { rotulo: "Último registo", valor: horas == null ? "sem registo" : haQuanto(horas), tom: horas != null && horas <= 26 ? "bom" : "aviso", nota: "Corre todos os dias à 01h10 (Lisboa)." },
+            { rotulo: "Vigia", valor: "todos os dias às 07h44", nota: "Manda aviso para o telemóvel se o bot não correu." },
+            { rotulo: "Capital inicial (virtual)", valor: `${dinheiro(r.capital)} $` },
+            { rotulo: "Comissões simuladas até hoje", valor: `${comSinal(-comissoes)} $`, tom: comissoes > 0 ? "mau" : "neutro", nota: "0,08% nas compras à vista e 0,06% nas vendas em perpétuo. O funding também é simulado." },
+          ]}
+        />
+        <Glossario itens={[...GLOSSARIO_BASE, ["Simulação", "Carteira de 1 000 $ virtuais. O bot calcula tudo como se negociasse, mas não envia ordens. Serve para comparar com a conta real."]]} />
+      </>}
       grafico={{
         titulo: "Resultado desde o arranque",
         nota: "Em %, comparado com simplesmente comprar e guardar BTC ou ETH no mesmo dia.",

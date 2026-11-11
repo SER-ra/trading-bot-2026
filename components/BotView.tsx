@@ -19,6 +19,7 @@ export interface Numero {
   rotulo: string;
   valor: string;
   tom?: "bom" | "mau" | "neutro";
+  ajuda?: string; // explicação curta por baixo do número
 }
 
 export interface SerieGrafico {
@@ -70,6 +71,11 @@ export interface BotViewProps {
   ligacaoExtra?: { href: string; texto: string };
   topo?: React.ReactNode;
   fundo?: React.ReactNode;
+  meio?: React.ReactNode; // blocos entre o resumo e o gráfico
+  fim?: React.ReactNode; // blocos depois das operações
+  rotuloResultado?: string; // texto a seguir ao resultado (por omissão "desde o início")
+  colunaResultado?: string; // título da última coluna das operações
+  aviso?: string; // faixa de aviso no topo
   rodape: string;
 }
 
@@ -108,6 +114,8 @@ export default function BotView(p: BotViewProps) {
           </div>
         </header>
 
+        {p.aviso && <div className="bv-aviso-faixa">⚠ {p.aviso}</div>}
+
         {p.topo}
 
         <section className="bv-card bv-resumo">
@@ -117,7 +125,7 @@ export default function BotView(p: BotViewProps) {
               {p.valorActual} <small>{p.moeda}</small>
             </div>
             <div className="bv-resultado" style={{ color: TOM[p.resultado.tom] }}>
-              {p.resultado.pct} <span>({p.resultado.valor}) desde o início</span>
+              {p.resultado.pct} <span>({p.resultado.valor}) {p.rotuloResultado ?? "desde o início"}</span>
             </div>
           </div>
           <div className="bv-numeros">
@@ -125,10 +133,13 @@ export default function BotView(p: BotViewProps) {
               <div key={n.rotulo} className="bv-numero">
                 <div className="bv-rotulo">{n.rotulo}</div>
                 <div className="bv-num" style={{ color: TOM[n.tom ?? "neutro"] }}>{n.valor}</div>
+                {n.ajuda && <div className="bv-ajuda">{n.ajuda}</div>}
               </div>
             ))}
           </div>
         </section>
+
+        {p.meio}
 
         <section className="bv-card">
           <div className="bv-sec-head">
@@ -204,7 +215,7 @@ export default function BotView(p: BotViewProps) {
             <div className="bv-tabela-wrap">
               <table className="bv-tabela">
                 <thead>
-                  <tr><th>Quando</th><th>Activo</th><th>Lado</th><th className="r">Preço</th><th className="r esc">Valor</th><th className="r">Resultado</th></tr>
+                  <tr><th>Quando</th><th>Activo</th><th>Lado</th><th className="r">Preço</th><th className="r esc">Valor</th><th className="r">{p.colunaResultado ?? "Resultado"}</th></tr>
                 </thead>
                 <tbody>
                   {p.operacoes.slice(0, 30).map((o) => (
@@ -222,6 +233,8 @@ export default function BotView(p: BotViewProps) {
             </div>
           )}
         </section>
+
+        {p.fim}
 
         <footer className="bv-rodape">{p.rodape}</footer>
       </div>

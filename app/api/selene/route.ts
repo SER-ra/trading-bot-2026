@@ -12,7 +12,7 @@ export async function GET() {
   const key = process.env.SELENE_SUPABASE_ANON_KEY;
   const token = process.env.SELENE_TOKEN_LEITURA;
   if (!url || !key || !token) {
-    return NextResponse.json({ diario: [], moedas: [], operacoes: [], erro: "Selene_v1 não configurada" });
+    return NextResponse.json({ diario: [], moedas: [], operacoes: [], batimentos: [], erro: "Selene_v1 não configurada" });
   }
   try {
     const res = await fetch(`${url}/rest/v1/rpc/selene_painel`, {

@@ -38,11 +38,39 @@ export interface SeleneOperacao {
   nota: string | null;
 }
 
+export interface SeleneBatimento {
+  instancia: string;
+  dia: string;
+  estado: "ok" | "incompleta" | "erro";
+  equity: number | null;
+  detalhe: string | null;
+  registado_em: string;
+}
+
 export interface SeleneData {
   diario: SeleneDia[];
   moedas: SeleneMoeda[];
   operacoes: SeleneOperacao[];
+  batimentos?: SeleneBatimento[];
   erro?: string;
+}
+
+/** Posição actual de cada moeda na simulação, reconstruída a partir das operações (quantidade e preço médio de entrada). */
+export function posicoesSimuladas(data: SeleneData | null): Record<string, { qtd: number; entrada: number }> {
+  const out: Record<string, { qtd: number; entrada: number }> = {};
+  const ops = [...(data?.operacoes ?? [])].sort((a, b) => a.ts.localeCompare(b.ts));
+  for (const o of ops) {
+    const q = Number(o.quantidade ?? 0) * (/compra|buy|long/i.test(o.lado) ? 1 : -1);
+    const px = Number(o.preco ?? 0);
+    const p = out[o.moeda] ?? { qtd: 0, entrada: 0 };
+    const nova = p.qtd + q;
+    if (Math.abs(nova) < 1e-9) { out[o.moeda] = { qtd: 0, entrada: 0 }; continue; }
+    if (p.qtd === 0 || Math.sign(nova) !== Math.sign(p.qtd)) p.entrada = px;
+    else if (Math.abs(nova) > Math.abs(p.qtd)) p.entrada = (p.entrada * Math.abs(p.qtd) + px * Math.abs(q)) / Math.abs(nova);
+    p.qtd = nova;
+    out[o.moeda] = p;
+  }
+  return out;
 }
 
 export const SELENE_V1_COLOR = "#e9e4d4";

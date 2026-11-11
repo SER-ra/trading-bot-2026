@@ -16,6 +16,7 @@ import Estrelas from "../components/Estrelas";
 import { fetchEquityHistory, fetchTrades } from "../lib/queries";
 import { estadoBots } from "../lib/estadoBots";
 import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, resumo, serieRetorno, tempoRelativo } from "../lib/selene";
+import { SELENE_REAL_COLOR, type SeleneReal, fetchSeleneReal, piorQueda } from "../lib/seleneReal";
 
 const V2_COLOR = "#ff8a4c";
 
@@ -38,7 +39,8 @@ export default function Home() {
   const [equity, setEquity] = useState<EquityPoint[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [mounted, setMounted] = useState(false);
-  const [falhas, setFalhas] = useState<{ v1?: string; v2?: string }>({});
+  const [real, setReal] = useState<SeleneReal | null>(null);
+  const [falhas, setFalhas] = useState<{ v1?: string; v2?: string; real?: string }>({});
 
   useEffect(() => {
     setMounted(true);
@@ -46,6 +48,9 @@ export default function Home() {
       fetchSelene()
         .then((d) => { setSelene(d); setFalhas((f) => ({ ...f, v1: d.erro })); })
         .catch((e) => setFalhas((f) => ({ ...f, v1: String(e) })));
+      fetchSeleneReal()
+        .then((d) => { if (d.erro) setFalhas((f) => ({ ...f, real: d.erro })); else { setReal(d); setFalhas((f) => ({ ...f, real: undefined })); } })
+        .catch((e) => setFalhas((f) => ({ ...f, real: String(e) })));
       Promise.all([fetchEquityHistory(), fetchTrades()])
         .then(([e, t]) => { setEquity(e); setTrades(t); setFalhas((f) => ({ ...f, v2: undefined })); })
         .catch((e) => setFalhas((f) => ({ ...f, v2: String(e) })));
@@ -72,6 +77,28 @@ export default function Home() {
       serie: serieRetorno(selene).map((p, i) => ({ i, v: p.selene })),
     };
   }, [selene]);
+
+  const vReal: Resumo = useMemo(() => {
+    const cap = real?.investido ?? 0, eq = real?.capital ?? 0;
+    const posicoes = [
+      ...(real?.perps ?? []).map((p) => `${p.moeda}: ${p.qtd < 0 ? "vendido" : "comprado"}`),
+      ...(real?.vista ?? []).map((v) => `${v.moeda}: comprado`),
+    ];
+    const exp = eq ? (((real?.perps ?? []).reduce((s, p) => s + Math.abs(p.valor), 0) + (real?.vista ?? []).reduce((s, v) => s + v.valor, 0)) / eq) * 100 : 0;
+    return {
+      equity: eq,
+      capital: cap,
+      retorno: cap ? (eq / cap - 1) * 100 : 0,
+      horas: real?.batimento ? horasDesde(Date.parse(real.batimento.registado_em)) : null,
+      limite: 30,
+      detalhe: [
+        `Investido ${Math.round(exp)}%`,
+        posicoes.join(" · ") || "Sem posições abertas",
+        `Pior queda ${pct(piorQueda(real?.historico ?? []))}`,
+      ],
+      serie: (real?.historico ?? []).map((p, i) => ({ i, v: cap ? (p.v / cap - 1) * 100 : 0 })),
+    };
+  }, [real]);
 
   const v2: Resumo = useMemo(() => {
     const live = trades.filter((t) => !isTestTrade(t));
@@ -109,7 +136,7 @@ export default function Home() {
           <div className="hm-moon" aria-hidden />
           <div>
             <h1>Selene</h1>
-            <div className="hm-sub">Bots de negociação em simulação. Escolhe uma versão.</div>
+            <div className="hm-sub">Bots de negociação: um com dinheiro real, dois em simulação.</div>
           </div>
         </header>
 
@@ -119,10 +146,21 @@ export default function Home() {
             nome="Selene_v1"
             motor="Claude"
             cor={SELENE_V1_COLOR}
-            descricao="Segue a tendência diária de BTC e ETH. Compra, aposta na descida ou fica fora, sem alavancagem."
+            descricao="Simulação com 1 000 $ virtuais. Segue a tendência diária de BTC e ETH: compra, aposta na descida ou fica fora."
             r={v1}
             erro={falhas.v1}
             mounted={mounted}
+          />
+          <BotEntry
+            href="/v1/real"
+            nome="Selene_v1 REAL"
+            motor="Claude · dinheiro real"
+            cor={SELENE_REAL_COLOR}
+            descricao="A mesma regra, com dinheiro verdadeiro na Hyperliquid. Valores lidos da corretora ao vivo."
+            r={vReal}
+            erro={falhas.real}
+            mounted={mounted}
+            rotuloRegisto="Última corrida do bot"
           />
           <BotEntry
             href="/v2"
@@ -137,7 +175,7 @@ export default function Home() {
         </div>
 
         <footer className="hm-foot">
-          Ambas as versões estão em simulação. Isto não é aconselhamento financeiro.
+          A Selene_v1 REAL negoceia com dinheiro verdadeiro; a Selene_v1 e a Selene_v2 estão em simulação. Isto não é aconselhamento financeiro.
         </footer>
       </div>
     </div>
@@ -145,9 +183,9 @@ export default function Home() {
 }
 
 function BotEntry({
-  href, nome, motor, cor, descricao, r, erro, mounted,
+  href, nome, motor, cor, descricao, r, erro, mounted, rotuloRegisto = "Último registo",
 }: {
-  href: string; nome: string; motor: string; cor: string; descricao: string; r: Resumo; erro?: string; mounted: boolean;
+  href: string; nome: string; motor: string; cor: string; descricao: string; r: Resumo; erro?: string; mounted: boolean; rotuloRegisto?: string;
 }) {
   const parado = r.activos ? r.activos.n === 0 : r.horas != null && r.horas > r.limite;
   const parcial = !!r.activos && r.activos.n > 0 && r.activos.n < r.activos.total;
@@ -182,7 +220,7 @@ function BotEntry({
       <div className="hm-meta">
         {r.detalhe.map((d, i) => <span key={i}>{d}</span>)}
         <span style={{ color: parado ? "var(--bv-aviso)" : undefined }}>
-          {r.horas == null ? "Sem registos" : `Último registo há ${tempoRelativo(r.horas).toLowerCase()}`}
+          {r.horas == null ? "Sem registos" : `${rotuloRegisto} há ${tempoRelativo(r.horas).toLowerCase()}`}
         </span>
       </div>
       {erro && <div className="hm-err">{erro}</div>}

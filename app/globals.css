@@ -1001,3 +1001,30 @@ body {
   .lua-cartao { grid-template-columns: 64px minmax(0, 1fr); }
   .lua-mini .lua-svg { width: 64px; }
 }
+
+/* ---------- Selene_v1: explicações, posições, saúde e glossário ---------- */
+.bv-ajuda { font-size: 12px; color: var(--bv-mudo); line-height: 1.35; margin-top: 3px; }
+.bv-aviso-faixa { border: 1px solid color-mix(in srgb, var(--bv-aviso) 45%, transparent); background: color-mix(in srgb, var(--bv-aviso) 9%, transparent); color: var(--bv-aviso); border-radius: 12px; padding: 10px 14px; font-size: 14px; }
+.ex-grelha { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 14px; }
+.ex-item { border: 1px solid var(--bv-linha); border-radius: 12px; padding: 14px 16px; background: #0a0a0a; }
+.ex-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.ex-moeda { font-weight: 600; font-size: 16px; }
+.ex-porque { margin: 10px 0 0; font-size: 14px; color: var(--bv-tinta); line-height: 1.5; }
+.ex-sub { margin-top: 12px; font-size: 12px; color: var(--bv-mudo); text-transform: uppercase; letter-spacing: 0.06em; }
+.ex-lista { margin: 4px 0 0; padding-left: 18px; font-size: 14px; color: var(--bv-tinta2); line-height: 1.5; }
+.ex-tam { margin: 4px 0 0; font-size: 14px; color: var(--bv-tinta2); line-height: 1.5; }
+.ex-linhas { margin: 12px 0 0; display: flex; flex-direction: column; }
+.ex-linha { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 8px 0; border-bottom: 1px solid #171717; }
+.ex-linha:last-child { border-bottom: 0; }
+.ex-linha dt { font-size: 14px; color: var(--bv-tinta2); }
+.ex-linha dt small { display: block; font-size: 12px; color: var(--bv-mudo); line-height: 1.35; margin-top: 1px; }
+.ex-linha dd { margin: 0; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 14px; text-align: right; white-space: nowrap; }
+.ex-avisos { margin-top: 10px; color: var(--bv-aviso); font-size: 14px; }
+.ex-avisos p { margin: 4px 0; }
+.ex-glossario summary { cursor: pointer; font-size: 17px; font-weight: 600; }
+.ex-glossario dl { margin: 12px 0 0; display: flex; flex-direction: column; gap: 10px; }
+.ex-glossario dt { font-size: 14px; font-weight: 600; color: var(--bv-tinta); }
+.ex-glossario dd { margin: 2px 0 0; font-size: 14px; color: var(--bv-tinta2); line-height: 1.5; }
+.bv-root.hm-root .hm-grid { grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+.bv-root.hm-root .hm-shell { max-width: 1180px; }
+@media (max-width: 720px) { .ex-grelha { grid-template-columns: 1fr; } .ex-linha dd { white-space: normal; } }
