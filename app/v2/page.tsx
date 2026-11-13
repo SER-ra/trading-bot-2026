@@ -5,8 +5,9 @@ import BotView, { MiniCurva, type Activo, type Estado } from "../../components/B
 import {
   type EquityPoint,
   type Trade,
-  botEquitySeries,
-  buildEquityCurve,
+  botPnlSeries,
+  buildPnlCurve,
+  currentCapital,
   isClosedTrade,
   isOpenTrade,
   isTestTrade,
@@ -42,21 +43,18 @@ export default function SeleneV2() {
     const bots = resolveBots(equity, reais);
     const estados = estadoBots(equity, bots);
     const nActivos = estados.filter((e) => e.activo).length;
-    const capital = bots.reduce((s, b) => s + b.capital, 0);
-    const actual = bots.reduce((s, b) => s + latestEquity(equity, b.id, b.capital), 0);
-    const curva = buildEquityCurve(equity, bots);
+    const capital = bots.reduce((s, b) => s + currentCapital(b), 0);
+    const actual = bots.reduce((s, b) => s + latestEquity(equity, b.id, currentCapital(b)), 0);
+    const curva = buildPnlCurve(equity, bots);
 
-    // série em % do capital total, uma amostra por hora para ficar legível
+    // série em % do capital actual, uma amostra por hora para ficar legível
     const porHora = new Map<number, number>();
-    let pico = capital;
+    let pico = 0;
     let pior = 0;
     for (const linha of curva) {
-      let pnl = 0;
-      for (const b of bots) { const x = linha.values[b.id]; if (x != null) pnl += x - b.capital; }
-      const total = capital + pnl;
-      pico = Math.max(pico, total);
-      pior = Math.min(pior, (total / pico - 1) * 100);
-      porHora.set(Math.floor(linha.time / HORA) * HORA, capital ? (pnl / capital) * 100 : 0);
+      pico = Math.max(pico, linha.total);
+      pior = Math.min(pior, capital ? ((linha.total - pico) / capital) * 100 : 0);
+      porHora.set(Math.floor(linha.time / HORA) * HORA, capital ? (linha.total / capital) * 100 : 0);
     }
     const serie = [...porHora.entries()].sort((a, b) => a[0] - b[0]).map(([t, pct]) => ({ rotulo: dataHora(t), total: pct }));
 
@@ -70,22 +68,23 @@ export default function SeleneV2() {
       .reduce((s, t) => s + (Number(t.pnl) || 0), 0);
 
     const activos: Activo[] = bots.map((b) => {
-      const eq = latestEquity(equity, b.id, b.capital);
-      const pnl = eq - b.capital;
+      const base = currentCapital(b);
+      const eq = latestEquity(equity, b.id, base);
+      const pnl = eq - base;
       const nAbertas = abertas.filter((t) => t.bot === b.id).length;
       const st = estados.find((e) => e.id === b.id)!;
       const quando = st.horas == null ? "sem registos" : `último registo ${haQuanto(st.horas)}`;
       return {
         nome: b.label,
         valor: `$${dinheiro(eq)}`,
-        linha2: `${comSinal(pnl)} $ · ${percent((pnl / b.capital) * 100)}`,
+        linha2: `${comSinal(pnl)} $ · ${percent((pnl / base) * 100)}`,
         tom: tom(pnl),
         etiqueta: st.activo ? "Activo" : "Parado",
         etiquetaActiva: st.activo,
         extra: (
           <>
             <div className="v2-bot-info">{nAbertas ? `${nAbertas} ${nAbertas > 1 ? "posições abertas" : "posição aberta"}` : "Sem posição"} · {quando}</div>
-            <MiniCurva valores={botEquitySeries(equity, b.id, b.capital)} cor={b.color} />
+            <MiniCurva valores={botPnlSeries(equity, b.id, b.capital)} cor={b.color} />
           </>
         ),
       };

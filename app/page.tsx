@@ -5,7 +5,8 @@ import { Line, LineChart, ReferenceLine, ResponsiveContainer, YAxis } from "rech
 import {
   type EquityPoint,
   type Trade,
-  buildEquityCurve,
+  buildPnlCurve,
+  currentCapital,
   isOpenTrade,
   isTestTrade,
   latestEquity,
@@ -103,14 +104,10 @@ export default function Home() {
   const v2: Resumo = useMemo(() => {
     const live = trades.filter((t) => !isTestTrade(t));
     const bots = resolveBots(equity, live);
-    const eq = bots.reduce((s, b) => s + latestEquity(equity, b.id, b.capital), 0);
-    const cap = bots.reduce((s, b) => s + b.capital, 0);
-    const curve = buildEquityCurve(equity, bots);
-    const serie = curve.map((row, i) => {
-      let pnl = 0;
-      for (const b of bots) { const v = row.values[b.id]; if (v != null) pnl += v - b.capital; }
-      return { i, v: cap ? (pnl / cap) * 100 : 0 };
-    });
+    const eq = bots.reduce((s, b) => s + latestEquity(equity, b.id, currentCapital(b)), 0);
+    const cap = bots.reduce((s, b) => s + currentCapital(b), 0);
+    const curve = buildPnlCurve(equity, bots);
+    const serie = curve.map((row, i) => ({ i, v: cap ? (row.total / cap) * 100 : 0 }));
     const ultimo = equity.reduce((best, p) => Math.max(best, Date.parse(p.timestamp) || 0), 0);
     return {
       equity: eq,

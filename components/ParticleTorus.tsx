@@ -17,10 +17,14 @@ attribute vec3 aColor;
 attribute float aSize;
 uniform mat4 uMvp;
 uniform float uPoint;
+uniform float uTime;
 varying vec3 vColor;
 varying float vAlpha;
 void main() {
-  vec4 p = uMvp * vec4(aPos, 1.0);
+  vec3 pos = aPos;
+  float wobble = sin(aPos.y * 5.5 + uTime * 0.55) * cos(aPos.x * 3.7 - uTime * 0.33);
+  pos += normalize(aPos + vec3(0.0008)) * wobble * 0.03;
+  vec4 p = uMvp * vec4(pos, 1.0);
   gl_Position = p;
   float dist = max(0.35, p.w);
   gl_PointSize = clamp(aSize * uPoint * (2.8 / dist), 1.4, 8.0);
@@ -221,8 +225,8 @@ function buildCloud(slices: TorusSlice[], count: number): Cloud {
         }
       }
       const halo = (ui + vi) % 9 === 0;
-      const radius = tube * (halo ? 1.22 : 0.9 + Math.random() * 0.22);
-      const major = R + (Math.random() - 0.5) * 0.03;
+      const radius = tube * (halo ? 1.02 + Math.random() * 0.42 : 0.7 + Math.random() * 0.48);
+      const major = R + (Math.random() - 0.5) * 0.07;
       positions[i * 3] = (major + radius * Math.cos(v)) * Math.cos(u);
       positions[i * 3 + 1] = radius * Math.sin(v);
       positions[i * 3 + 2] = (major + radius * Math.cos(v)) * Math.sin(u);
@@ -311,6 +315,7 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
     const sizeLoc = gl.getAttribLocation(program, "aSize");
     const mvpLoc = gl.getUniformLocation(program, "uMvp");
     const pointLoc = gl.getUniformLocation(program, "uPoint");
+    const timeLoc = gl.getUniformLocation(program, "uTime");
 
     let cloud = buildCloud(slicesRef.current, 1000);
     let count = 0;
@@ -390,6 +395,7 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
       gl.useProgram(program);
       gl.uniformMatrix4fv(mvpLoc, false, mvp);
       gl.uniform1f(pointLoc, narrow ? 92 : 118);
+      gl.uniform1f(timeLoc, reducedRef.current ? 0 : performance.now() / 1000);
       gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
       gl.enableVertexAttribArray(posLoc);
       gl.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0);
@@ -431,25 +437,49 @@ export default function ParticleTorus({ slices, total }: { slices: TorusSlice[];
         const tx = originX + (dx / dist) * rim;
         const ty = originY + (dy / dist) * rim;
         const color = current[index].color;
+        const mx = (tx + ax) / 2;
+        const my = (ty + ay) / 2;
+        const nx = ay - ty;
+        const ny = tx - ax;
+        const nlen = Math.hypot(nx, ny) || 1;
+        const bow = 16 + (index % 3) * 7;
+        const cpx = mx + (nx / nlen) * bow;
+        const cpy = my + (ny / nlen) * bow;
         const gradient = ctx.createLinearGradient(tx, ty, ax, ay);
-        gradient.addColorStop(0, rgba(color, 0.15));
-        gradient.addColorStop(0.45, rgba(color, 0.9));
-        gradient.addColorStop(1, rgba(color, 0.15));
+        gradient.addColorStop(0, rgba(color, 0.05));
+        gradient.addColorStop(0.4, rgba(color, 0.85));
+        gradient.addColorStop(1, rgba(color, 0.08));
         ctx.beginPath();
         ctx.moveTo(tx, ty);
-        ctx.lineTo(ax, ay);
+        ctx.quadraticCurveTo(cpx, cpy, ax, ay);
+        ctx.strokeStyle = rgba(color, 0.22);
+        ctx.lineWidth = 4.5;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.quadraticCurveTo(cpx, cpy, ax, ay);
         ctx.strokeStyle = gradient;
         ctx.lineWidth = 1.15;
-        ctx.shadowColor = color;
         ctx.shadowBlur = 6;
         ctx.stroke();
         if (!reducedRef.current) {
-          const travel = (performance.now() / 1600 + index * 0.17) % 1;
+          const q = (t: number) => {
+            const u = 1 - t;
+            return {
+              x: u * u * ax + 2 * u * t * cpx + t * t * tx,
+              y: u * u * ay + 2 * u * t * cpy + t * t * ty,
+            };
+          };
           ctx.shadowBlur = 0;
           ctx.fillStyle = color;
-          ctx.beginPath();
-          ctx.arc(ax + (tx - ax) * travel, ay + (ty - ay) * travel, 2.1, 0, Math.PI * 2);
-          ctx.fill();
+          for (const offset of [0, 0.45]) {
+            const dot = q(((performance.now() / 1800) + index * 0.13 + offset) % 1);
+            ctx.beginPath();
+            ctx.arc(dot.x, dot.y, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       });
       ctx.shadowBlur = 0;

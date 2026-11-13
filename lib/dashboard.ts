@@ -4,6 +4,25 @@
  */
 export const STARTING_CAPITAL = 250;
 
+/**
+ * Cash added after a bot's starting capital. A deposit is not profit.
+ * Add one line per top-up. `at` is the instant the cash is first included
+ * in equity (inclusive): after the last snapshot that excludes it, and at
+ * or before the first snapshot that includes it. P&L subtracts the capital
+ * in force when each snapshot was taken, so the line does not jump.
+ */
+export interface Deposit {
+  bot: string;
+  at: string;
+  amount: number;
+}
+
+export const DEPOSITS: Deposit[] = [
+  // 10 Nov 2026: BTC and ETH paper capital raised from 250 to 500.
+  { bot: "BTC", at: "2026-11-10T21:55:22+00:00", amount: 250 },
+  { bot: "ETH", at: "2026-11-10T22:15:07+00:00", amount: 250 },
+];
+
 /** Paper session start. Earlier rows are the pre-reset 1000 USDT snapshots. */
 export const HISTORY_START = "2026-10-27T15:00:00+00:00";
 
@@ -33,6 +52,7 @@ export interface BotProfile {
   id: string;
   label: string;
   color: string;
+  /** Capital the bot started with, before {@link DEPOSITS}. */
   capital: number;
 }
 
@@ -40,6 +60,36 @@ export interface CurveRow {
   time: number;
   label: string;
   values: Record<string, number | null>;
+}
+
+/** Starting capital plus every deposit booked at or before `timeMs`. */
+export function capitalAt(botId: string, timeMs: number, starting = STARTING_CAPITAL): number {
+  let capital = starting;
+  for (const deposit of DEPOSITS) {
+    if (deposit.bot !== botId || !Number.isFinite(deposit.amount)) continue;
+    const at = Date.parse(deposit.at);
+    if (Number.isFinite(at) && at <= timeMs) capital += deposit.amount;
+  }
+  return capital;
+}
+
+/** Base used for the wallet and for percentage returns. Includes deposits already in force. */
+export function currentCapital(bot: { id: string; capital: number }, asOf = Date.now()): number {
+  return capitalAt(bot.id, asOf, bot.capital);
+}
+
+export function returnPct(pnl: number, base: number): number {
+  if (!(base > 0) || !Number.isFinite(pnl)) return 0;
+  return (pnl / base) * 100;
+}
+
+/** Giveback from the high-water P&L, as a percent of the current capital base. */
+export function pnlDrawdown(totals: number[], base: number): number {
+  let peak = 0;
+  for (const value of totals) if (Number.isFinite(value) && value > peak) peak = value;
+  const current = totals.length ? totals[totals.length - 1] : 0;
+  const giveback = peak - (Number.isFinite(current) ? current : 0);
+  return Math.max(0, returnPct(giveback, base));
 }
 
 export const KNOWN_BOTS: BotProfile[] = [
@@ -142,6 +192,19 @@ export function latestEquity(points: EquityPoint[], botId: string, fallback: num
   return value;
 }
 
+/** Cumulative P&L of one bot. Each point is equity minus the capital in force at that snapshot. */
+export function botPnlSeries(points: EquityPoint[], botId: string, starting = STARTING_CAPITAL): number[] {
+  const pnl = points
+    .filter((point) => point.bot === botId)
+    .map((point) => ({ time: Date.parse(point.timestamp), equity: Number(point.equity) }))
+    .filter((point) => Number.isFinite(point.time) && Number.isFinite(point.equity))
+    .sort((a, b) => a.time - b.time)
+    .map((point) => point.equity - capitalAt(botId, point.time, starting));
+  if (pnl.length === 0) return [0, 0];
+  if (pnl.length === 1) return [pnl[0], pnl[0]];
+  return pnl;
+}
+
 export function botEquitySeries(points: EquityPoint[], botId: string, fallback: number): number[] {
   const values = points
     .filter((point) => point.bot === botId)
@@ -184,6 +247,58 @@ export function paddedDomain(values: number[], padRatio = 0.2): [number, number]
  * first minute it prints, so lines stay continuous when snapshots don't share
  * a timestamp. Minutes before a bot's first row stay null.
  */
+export interface PnlRow {
+  time: number;
+  label: string;
+  total: number;
+  byBot: Record<string, number | null>;
+}
+
+/**
+ * Portfolio cumulative P&L. A bot's P&L is fixed at each snapshot
+ * (equity minus capital then in force) and forward-filled, so a later
+ * deposit does not rewrite earlier points or print as a gain.
+ */
+export function buildPnlCurve(points: EquityPoint[], bots: { id: string; capital: number }[]): PnlRow[] {
+  const samples = new Map<string, { bucket: number; pnl: number }[]>();
+  const starting = new Map(bots.map((bot) => [bot.id, bot.capital]));
+  const sorted = [...points].sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+  for (const point of sorted) {
+    const time = Date.parse(point.timestamp);
+    const equity = Number(point.equity);
+    if (!point.bot || !Number.isFinite(time) || !Number.isFinite(equity)) continue;
+    const bucket = Math.floor(time / MINUTE) * MINUTE;
+    const pnl = equity - capitalAt(point.bot, time, starting.get(point.bot) ?? STARTING_CAPITAL);
+    let list = samples.get(point.bot);
+    if (!list) {
+      list = [];
+      samples.set(point.bot, list);
+    }
+    const last = list[list.length - 1];
+    if (last && last.bucket === bucket) last.pnl = pnl;
+    else list.push({ bucket, pnl });
+  }
+
+  const times = [...new Set([...samples.values()].flatMap((list) => list.map((sample) => sample.bucket)))].sort((a, b) => a - b);
+  const cursor = new Map<string, { index: number; pnl: number | null }>();
+  for (const bot of bots) cursor.set(bot.id, { index: 0, pnl: null });
+  return times.map((time) => {
+    let total = 0;
+    const byBot: Record<string, number | null> = {};
+    for (const bot of bots) {
+      const list = samples.get(bot.id) ?? [];
+      const state = cursor.get(bot.id)!;
+      while (state.index < list.length && list[state.index].bucket <= time) {
+        state.pnl = list[state.index].pnl;
+        state.index += 1;
+      }
+      byBot[bot.id] = state.pnl;
+      if (state.pnl != null) total += state.pnl;
+    }
+    return { time, label: formatTime(time), total, byBot };
+  });
+}
+
 export function buildEquityCurve(points: EquityPoint[], bots: { id: string }[]): CurveRow[] {
   const buckets = new Map<number, Map<string, number>>();
   const sorted = [...points].sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
