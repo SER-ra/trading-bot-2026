@@ -28,8 +28,9 @@ export interface ProgressoMoeda {
 }
 
 /** Distância (%) da moeda ao sinal mais próximo e qual: compra ou venda. 0 = já em sinal. */
-export function sinalMaisProximo(p: ProgressoMoeda): { lado: "compra" | "venda"; dist: number } {
+export function sinalMaisProximo(p: ProgressoMoeda, semVendas = false): { lado: "compra" | "venda"; dist: number } {
   if (p.n === 3) return { lado: "compra", dist: 0 };
+  if (semVendas) return { lado: "compra", dist: Math.max(0, p.paraComprar ?? Infinity) };
   if (p.descida) return { lado: "venda", dist: 0 };
   const c = p.paraComprar ?? Infinity, v = p.paraVender ?? Infinity;
   return c <= v ? { lado: "compra", dist: c } : { lado: "venda", dist: v };
@@ -42,8 +43,8 @@ const pctTxt = (x: number) => `${x.toFixed(1).replace(".", ",")}%`;
  * lua cheia = preço acima das 3 médias (compra); lua nova = abaixo das 3 (aposta na descida); no meio = fora.
  * O título fala do sinal mais próximo, seja de compra ou de venda.
  */
-export default function PainelLua({ progresso }: { progresso: ProgressoMoeda[] }) {
-  const comSinal = progresso.map((p) => ({ p, s: sinalMaisProximo(p) }));
+export default function PainelLua({ progresso, semVendas = false }: { progresso: ProgressoMoeda[]; semVendas?: boolean }) {
+  const comSinal = progresso.map((p) => ({ p, s: sinalMaisProximo(p, semVendas) }));
   const alvo = comSinal.reduce<(typeof comSinal)[number] | null>((a, b) => (!a || b.s.dist < a.s.dist ? b : a), null);
   const emSinal = comSinal.filter((x) => x.s.dist === 0);
 
@@ -56,18 +57,18 @@ export default function PainelLua({ progresso }: { progresso: ProgressoMoeda[] }
   return (
     <section className={`lua-painel luas${emSinal.length ? " cheia" : ""}`}>
       <div className="lua-texto">
-        <div className="lua-fase">Lua cheia compra · lua nova vende · no meio fica fora</div>
+        <div className="lua-fase">{semVendas ? "Lua cheia compra · no resto fica fora (este bot não aposta na descida)" : "Lua cheia compra · lua nova vende · no meio fica fora"}</div>
         <div className="lua-titulo">{titulo}</div>
         <div className="luas-grelha">
           {progresso.map((p) => {
-            const s = sinalMaisProximo(p);
-            const estado = p.n === 3 ? "compra" : p.descida ? "venda" : "fora";
+            const s = sinalMaisProximo(p, semVendas);
+            const estado = p.n === 3 ? "compra" : p.descida && !semVendas ? "venda" : "fora";
             return (
               <div key={p.moeda} className={`lua-cartao ${estado}`}>
                 <div className="lua-mini"><Lua fracao={p.n / 3} /></div>
                 <div className="lua-info">
                   <div className="lua-moeda-nome">
-                    {p.moeda} <span className="lua-fase-moeda">{p.descida ? "Lua nova · vendido" : `${FASES[p.n]}${p.n === 3 ? " · compra" : ""}`}</span>
+                    {p.moeda} <span className="lua-fase-moeda">{p.descida ? (semVendas ? "Lua nova · fora" : "Lua nova · vendido") : `${FASES[p.n]}${p.n === 3 ? " · compra" : ""}`}</span>
                   </div>
                   <div className="lua-pontos">
                     {[0, 1, 2].map((i) => <i key={i} className={i < p.n ? "on" : ""} />)}
@@ -76,7 +77,7 @@ export default function PainelLua({ progresso }: { progresso: ProgressoMoeda[] }
                   {estado === "fora" ? (
                     <div className="lua-dist">
                       <span className={s.lado === "compra" ? "perto" : ""}>comprar <b className="bom">+{pctTxt(p.paraComprar ?? 0)}</b></span>
-                      <span className={s.lado === "venda" ? "perto" : ""}>vender <b className="mau">−{pctTxt(p.paraVender ?? 0)}</b></span>
+                      {!semVendas && <span className={s.lado === "venda" ? "perto" : ""}>vender <b className="mau">−{pctTxt(p.paraVender ?? 0)}</b></span>}
                     </div>
                   ) : (
                     <div className="lua-dist"><span>{estado === "compra" ? "preço acima das 3 médias" : "preço abaixo das 3 médias"}</span></div>

@@ -20,7 +20,7 @@ const pct = (n: number) => `${Math.abs(n).toFixed(1).replace(".", ",")}%`;
  * Preço e médias de 50/100/200 dias nos últimos meses, mais uma lista simples
  * das condições da regra da Selene_v1 e quanto falta para comprar ou para apostar na descida.
  */
-export default function GraficoMedias({ velas }: { velas: Vela[] }) {
+export default function GraficoMedias({ velas, semVendas = false }: { velas: Vela[]; semVendas?: boolean }) {
   const [montado, setMontado] = useState(false);
   useEffect(() => setMontado(true), []);
   if (!velas.length) return null;
@@ -43,6 +43,9 @@ export default function GraficoMedias({ velas }: { velas: Vela[] }) {
 
   let leitura: { txt: string; cor: string };
   if (acima === 3) leitura = { txt: "Sinal de compra: preço acima das 3 médias", cor: "var(--bv-bom)" };
+  else if (semVendas) leitura = paraComprar <= 3
+    ? { txt: `Perto de comprar: faltam ${pct(paraComprar)}`, cor: "var(--bv-aviso)" }
+    : { txt: paraDescida <= 0 ? "Fora: preço abaixo das 3 médias" : "Fora: preço entre as médias", cor: "var(--bv-mudo)" };
   else if (paraDescida <= 0) leitura = { txt: "Sinal de descida: preço abaixo das 3 médias", cor: "var(--bv-mau)" };
   else if (Math.min(paraComprar, paraDescida) <= 3)
     leitura = { txt: paraComprar <= paraDescida ? `Perto de comprar: faltam ${pct(paraComprar)}` : `Perto da descida: faltam ${pct(paraDescida)}`, cor: "var(--bv-aviso)" };
@@ -90,10 +93,10 @@ export default function GraficoMedias({ velas }: { velas: Vela[] }) {
           </li>
         ))}
       </ul>
-      {acima < 3 && paraDescida > 0 && (
+      {acima < 3 && (paraDescida > 0 || semVendas) && (
         <div className="gm-lados">
           <span>Para comprar: <b className="bom">subir {pct(paraComprar)}</b></span>
-          <span>Para apostar na descida: <b className="mau">cair {pct(paraDescida)}</b></span>
+          {!semVendas && <span>Para apostar na descida: <b className="mau">cair {pct(paraDescida)}</b></span>}
         </div>
       )}
     </div>

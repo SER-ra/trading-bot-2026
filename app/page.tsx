@@ -16,7 +16,7 @@ import {
 import Estrelas from "../components/Estrelas";
 import { fetchEquityHistory, fetchTrades } from "../lib/queries";
 import { estadoBots } from "../lib/estadoBots";
-import { SELENE_V1_COLOR, type SeleneData, fetchSelene, horasDesde, resumo, serieRetorno, tempoRelativo } from "../lib/selene";
+import { SELENE_V1_COLOR, SELENE_V3_COLOR, type SeleneData, fetchSelene, horasDesde, resumo, serieRetorno, tempoRelativo } from "../lib/selene";
 import { SELENE_REAL_COLOR, type SeleneReal, fetchSeleneReal, piorQueda } from "../lib/seleneReal";
 
 const V2_COLOR = "#ff8a4c";
@@ -37,11 +37,12 @@ interface Resumo {
 
 export default function Home() {
   const [selene, setSelene] = useState<SeleneData | null>(null);
+  const [selene3, setSelene3] = useState<SeleneData | null>(null);
   const [equity, setEquity] = useState<EquityPoint[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [mounted, setMounted] = useState(false);
   const [real, setReal] = useState<SeleneReal | null>(null);
-  const [falhas, setFalhas] = useState<{ v1?: string; v2?: string; real?: string }>({});
+  const [falhas, setFalhas] = useState<{ v1?: string; v2?: string; v3?: string; real?: string }>({});
 
   useEffect(() => {
     setMounted(true);
@@ -49,6 +50,9 @@ export default function Home() {
       fetchSelene()
         .then((d) => { setSelene(d); setFalhas((f) => ({ ...f, v1: d.erro })); })
         .catch((e) => setFalhas((f) => ({ ...f, v1: String(e) })));
+      fetchSelene("v3")
+        .then((d) => { setSelene3(d); setFalhas((f) => ({ ...f, v3: d.erro })); })
+        .catch((e) => setFalhas((f) => ({ ...f, v3: String(e) })));
       fetchSeleneReal()
         .then((d) => { if (d.erro) setFalhas((f) => ({ ...f, real: d.erro })); else { setReal(d); setFalhas((f) => ({ ...f, real: undefined })); } })
         .catch((e) => setFalhas((f) => ({ ...f, real: String(e) })));
@@ -61,9 +65,9 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
-  const v1: Resumo = useMemo(() => {
-    const r = resumo(selene);
-    const moedas = selene?.moedas.filter((m) => m.dia === r.ultimo?.dia) ?? [];
+  const resumoSim = (dados: SeleneData | null): Resumo => {
+    const r = resumo(dados);
+    const moedas = dados?.moedas.filter((m) => m.dia === r.ultimo?.dia) ?? [];
     return {
       equity: r.equity,
       capital: r.capital,
@@ -75,9 +79,11 @@ export default function Home() {
         moedas.map((m) => `${m.moeda}: ${(m.sinal ?? "—").toLowerCase()}`).join(" · ") || "Sem sinais",
         `Pior queda ${pct(r.quedaMaxPct)}`,
       ],
-      serie: serieRetorno(selene).map((p, i) => ({ i, v: p.selene })),
+      serie: serieRetorno(dados).map((p, i) => ({ i, v: p.selene })),
     };
-  }, [selene]);
+  };
+  const v1: Resumo = useMemo(() => resumoSim(selene), [selene]);
+  const v3: Resumo = useMemo(() => resumoSim(selene3), [selene3]);
 
   const vReal: Resumo = useMemo(() => {
     const cap = real?.investido ?? 0, eq = real?.capital ?? 0;
@@ -133,7 +139,7 @@ export default function Home() {
           <div className="hm-moon" aria-hidden />
           <div>
             <h1>Selene</h1>
-            <div className="hm-sub">Bots de negociação: um com dinheiro real, dois em simulação.</div>
+            <div className="hm-sub">Bots de negociação: um com dinheiro real, três em simulação.</div>
           </div>
         </header>
 
@@ -143,7 +149,7 @@ export default function Home() {
             nome="Selene_v1"
             motor="Claude"
             cor={SELENE_V1_COLOR}
-            descricao="Simulação com 1 000 $ virtuais. Segue a tendência diária de BTC e ETH: compra, aposta na descida ou fica fora."
+            descricao="Simulação, versão 1.4 (a agressiva). Segue a tendência diária de BTC e ETH: compra, aposta na descida com metade do tamanho ou fica fora."
             r={v1}
             erro={falhas.v1}
             mounted={mounted}
@@ -153,11 +159,21 @@ export default function Home() {
             nome="Selene_v1 REAL"
             motor="Dinheiro real"
             cor={SELENE_REAL_COLOR}
-            descricao="A mesma regra, com dinheiro verdadeiro na Hyperliquid. Valores lidos da corretora ao vivo."
+            descricao="Dinheiro verdadeiro na Hyperliquid, ainda com a regra anterior (três médias, apostas na descida inteiras). Valores lidos da corretora ao vivo."
             r={vReal}
             erro={falhas.real}
             mounted={mounted}
             rotuloRegisto="Última corrida do bot"
+          />
+          <BotEntry
+            href="/v3"
+            nome="Selene_v3"
+            motor="Claude"
+            cor={SELENE_V3_COLOR}
+            descricao="Simulação com 1 000 $ virtuais. A mesma tendência de BTC e ETH, mas só compra à vista: nunca aposta na descida."
+            r={v3}
+            erro={falhas.v3}
+            mounted={mounted}
           />
           <BotEntry
             href="/v2"
@@ -172,7 +188,7 @@ export default function Home() {
         </div>
 
         <footer className="hm-foot">
-          A Selene_v1 REAL negoceia com dinheiro verdadeiro; a Selene_v1 e a Selene_v2 estão em simulação. Isto não é aconselhamento financeiro.
+          A Selene_v1 REAL negoceia com dinheiro verdadeiro; a Selene_v1, a Selene_v3 e a Selene_v2 estão em simulação. Isto não é aconselhamento financeiro.
         </footer>
       </div>
     </div>

@@ -76,9 +76,12 @@ export function posicoesSimuladas(data: SeleneData | null): Record<string, { qtd
 export const SELENE_V1_COLOR = "#e9e4d4";
 const DIA_HORA = "T01:10:00Z";
 
-export async function fetchSelene(): Promise<SeleneData> {
-  const res = await fetch("/api/selene", { cache: "no-store" });
-  if (!res.ok) throw new Error(`Selene_v1 ${res.status}`);
+export const SELENE_V3_COLOR = "#8fd3c8";
+
+/** instancia: "simulacao" = Selene V1.4 (painel /v1) | "v3" = Selene v3, sem vendas (painel /v3). */
+export async function fetchSelene(instancia: "simulacao" | "v3" = "simulacao"): Promise<SeleneData> {
+  const res = await fetch(`/api/selene?instancia=${instancia}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Selene ${res.status}`);
   return res.json();
 }
 
